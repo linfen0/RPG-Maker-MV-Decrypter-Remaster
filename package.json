@@ -31,6 +31,8 @@
     "url": "https://github.com/Petschko/RPG-Maker-MV-Decrypter.git"
   },
   "dependencies": {
+    "@material/web": "^1.0.0",
+    "material-symbols": "^0.14.0",
     "bootstrap": "3.4.1",
     "file-saver": ">=1.3.2",
     "lz-string": ">=1.4.4",

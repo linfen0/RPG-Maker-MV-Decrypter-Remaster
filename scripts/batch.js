@@ -1,5 +1,5 @@
 /**
- * Batch Processing Logic
+ * Batch Processing Logic (M3 UI Version)
  */
 
 var batchFiles = [];
@@ -11,190 +11,257 @@ var maxWorkers = navigator.hardwareConcurrency || 4;
 var processedCount = 0;
 var totalCount = 0;
 var zipBatch = null;
-var batchLogEl = null;
+var currentMode = 'decrypt'; // 'decrypt', 'encrypt', 'restore'
+
+// UI Elements
+var ui = {
+    tabs: null,
+    dropZone: null,
+    folderInput: null,
+    fileInput: null,
+    selectFolderBtn: null,
+    selectFilesBtn: null,
+    startBtn: null,
+    progressBar: null,
+    statusText: null,
+    fileCount: null,
+    logPre: null,
+    previewGrid: null,
+    decryptCode: null,
+    detectKeyBtn: null,
+    encryptOptions: null,
+    verifyHeader: null,
+    themeToggle: null
+};
 
 function initBatch() {
-    var sourceInput = document.getElementById('batchSource');
-    var outputBtn = document.getElementById('batchOutputBtn');
-    var startBtn = document.getElementById('startBatchBtn');
-    batchLogEl = document.getElementById('batchLog');
+    // Bind UI Elements
+    ui.tabs = document.getElementById('modeTabs');
+    ui.dropZone = document.getElementById('dropZone');
+    ui.folderInput = document.getElementById('folderInput');
+    ui.fileInput = document.getElementById('fileInput');
+    ui.selectFolderBtn = document.getElementById('selectFolderBtn');
+    ui.selectFilesBtn = document.getElementById('selectFilesBtn');
+    ui.startBtn = document.getElementById('startBatchBtn');
+    ui.progressBar = document.getElementById('progressBar');
+    ui.statusText = document.getElementById('statusText');
+    ui.fileCount = document.getElementById('fileCount');
+    ui.logPre = document.getElementById('batchLog');
+    ui.previewGrid = document.getElementById('previewGrid');
+    ui.decryptCode = document.getElementById('decryptCode');
+    ui.detectKeyBtn = document.getElementById('detectKeyBtn');
+    ui.encryptOptions = document.getElementById('encryptOptions');
+    ui.verifyHeader = document.getElementById('verifyHeader');
+    ui.themeToggle = document.getElementById('themeToggle');
 
-    if (sourceInput) sourceInput.addEventListener('change', handleFolderSelect, false);
-    if (outputBtn) outputBtn.addEventListener('click', selectOutputFolder, false);
-    if (startBtn) startBtn.addEventListener('click', startBatch, false);
+    // Event Listeners
+    ui.tabs.addEventListener('change', handleModeChange);
 
-    // Mode Change Listener
-    var modeRadios = document.getElementsByName('batchMode');
-    for (var i = 0; i < modeRadios.length; i++) {
-        modeRadios[i].addEventListener('change', updateBatchUI, false);
+    ui.selectFolderBtn.addEventListener('click', () => ui.folderInput.click());
+    ui.folderInput.addEventListener('change', handleFileSelect);
+
+    ui.selectFilesBtn.addEventListener('click', () => ui.fileInput.click());
+    ui.fileInput.addEventListener('change', handleFileSelect);
+
+    ui.startBtn.addEventListener('click', startBatch);
+    ui.detectKeyBtn.addEventListener('click', detectKey);
+    ui.themeToggle.addEventListener('click', toggleTheme);
+
+    // Drag & Drop
+    ui.dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        ui.dropZone.classList.add('drag-over');
+    });
+    ui.dropZone.addEventListener('dragleave', () => {
+        ui.dropZone.classList.remove('drag-over');
+    });
+    ui.dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        ui.dropZone.classList.remove('drag-over');
+        handleFileSelect(e); // Reuse logic, might need adaptation for DataTransfer items
+    });
+
+    // Check for file protocol
+    if (window.location.protocol === 'file:') {
+        log("WARNING: You are running this via 'file://' protocol. Web Workers usually fail in this mode.");
     }
-    updateBatchUI();
 
-    // Check support
-    if (!('showDirectoryPicker' in window)) {
-        if (outputBtn) outputBtn.style.display = 'none';
-        var info = document.getElementById('batchOutputInfo');
-        if (info) info.innerText = "Browser doesn't support direct folder saving. Output will be a ZIP file.";
+    updateUIForMode();
+}
+
+function handleModeChange(e) {
+    // md-tabs emits change event, but we check active tab
+    if (document.getElementById('tab-decrypt').active) currentMode = 'decrypt';
+    else if (document.getElementById('tab-encrypt').active) currentMode = 'encrypt';
+    else if (document.getElementById('tab-restore').active) currentMode = 'restore';
+
+    updateUIForMode();
+}
+
+function updateUIForMode() {
+    // Reset UI state based on mode
+    if (currentMode === 'decrypt') {
+        ui.decryptCode.classList.remove('hidden');
+        ui.encryptOptions.classList.add('hidden');
+    } else if (currentMode === 'encrypt') {
+        ui.decryptCode.classList.remove('hidden'); // Encrypt also needs key usually? Or just for re-encrypt?
+        // Original tool: Encrypt needs key if re-encrypting? The original tool logic says:
+        // "Get the En/Decrypt-Code." for both.
+        ui.encryptOptions.classList.remove('hidden');
+    } else if (currentMode === 'restore') {
+        ui.decryptCode.classList.add('hidden');
+        ui.encryptOptions.classList.add('hidden');
     }
 }
 
-function updateBatchUI() {
-    var mode = document.querySelector('input[name="batchMode"]:checked').value;
-    var encryptOptions = document.getElementById('batchEncryptOptions');
-    if (encryptOptions) {
-        if (mode === 'encrypt') {
-            encryptOptions.style.display = 'block';
-        } else {
-            encryptOptions.style.display = 'none';
-        }
+function toggleTheme() {
+    document.body.classList.toggle('dark-theme');
+    const icon = ui.themeToggle.querySelector('md-icon');
+    icon.textContent = document.body.classList.contains('dark-theme') ? 'light_mode' : 'dark_mode';
+}
+
+function handleFileSelect(e) {
+    let files = [];
+    if (e.dataTransfer) {
+        // Drag & Drop
+        // Note: recursive directory traversal for DnD is complex, simpler to just take files for now
+        // or use webkitGetAsEntry. For this demo, let's stick to flat files from DnD or use input
+        // If user drops a folder, 'files' list might be empty or contain the folder as a file with size 0 (browser dependent)
+        // For robust folder drop, we need FileSystemEntry API.
+        // Let's support basic file drop for now.
+        files = Array.from(e.dataTransfer.files);
+    } else {
+        files = Array.from(e.target.files);
     }
+
+    // Filter files
+    batchFiles = files.filter(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        return ['rpgmvp', 'rpgmvm', 'rpgmvo', 'png_', 'ogg_', 'm4a_', 'png', 'ogg', 'm4a'].includes(ext);
+    });
+
+    ui.fileCount.textContent = `${batchFiles.length} files selected`;
+    log(`Selected ${batchFiles.length} valid files.`);
+
+    // Reset Progress
+    ui.progressBar.value = 0;
+    processedCount = 0;
+    ui.previewGrid.innerHTML = ''; // Clear previews
 }
 
 function log(msg) {
-    if (batchLogEl) {
-        batchLogEl.innerText = msg + '\n' + batchLogEl.innerText.substring(0, 1000);
-    }
+    ui.logPre.textContent = msg + '\n' + ui.logPre.textContent.substring(0, 1000);
     console.log(msg);
 }
 
-function handleFolderSelect(e) {
-    var files = e.target.files;
-    batchFiles = [];
+function detectKey() {
+    document.getElementById('systemFileDetect').click();
+}
 
-    // Reset UI
-    document.getElementById('batchTotalCount').innerText = '0';
-    document.getElementById('batchProgressBar').style.width = '0%';
-    document.getElementById('batchProgressBar').innerText = '0%';
+// Setup detect listener
+document.getElementById('systemFileDetect').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    var count = 0;
-    for (var i = 0; i < files.length; i++) {
-        var f = files[i];
-        var ext = f.name.split('.').pop().toLowerCase();
-        // Basic filter
-        if (['rpgmvp', 'rpgmvm', 'rpgmvo', 'png_', 'ogg_', 'm4a_', 'png', 'ogg', 'm4a'].indexOf(ext) !== -1) {
-            batchFiles.push(f);
-            count++;
+    // Use existing Decrypter logic (need to adapt since it was tightly coupled to DOM)
+    // We can use Decrypter.detectEncryptionCode directly
+    Decrypter.detectEncryptionCode(new RPGFile(file, null), 16, (key) => {
+        if (key) {
+            ui.decryptCode.value = key;
+            log(`Key detected: ${key}`);
+            alert(`Key found: ${key}`);
+        } else {
+            alert('Key not found in file.');
         }
-    }
+    });
+});
 
-    document.getElementById('batchTotalCount').innerText = count;
-    log('Selected ' + count + ' supported files.');
-}
 
-async function selectOutputFolder() {
-    try {
-        outputHandle = await window.showDirectoryPicker();
-        document.getElementById('batchOutputInfo').innerText = "Selected: " + outputHandle.name;
-        log('Output folder selected: ' + outputHandle.name);
-    } catch (e) {
-        log('Folder selection cancelled or failed: ' + e);
-    }
-}
-
-async function getFileHandleRecursive(root, path, create) {
-    var parts = path.split('/');
-    var current = root;
-    for (var i = 0; i < parts.length - 1; i++) {
-        current = await current.getDirectoryHandle(parts[i], { create: create });
-    }
-    return await current.getFileHandle(parts[parts.length - 1], { create: create });
-}
-
-async function saveFileToDisk(blob, relativePath, fileName) {
-    if (!outputHandle) return;
-
-    // relativePath includes the filename, e.g. "Folder/Sub/File.ext"
-    // We want to preserve the structure.
-    // Note: webkitRelativePath usually starts with the selected folder name.
-
-    try {
-        // Construct full path for output
-        // We replace the filename in relativePath with the new fileName (which has correct extension)
-        var pathParts = relativePath.split('/');
-        pathParts.pop(); // remove old filename
-        pathParts.push(fileName); // add new filename
-        var fullPath = pathParts.join('/');
-
-        var fileHandle = await getFileHandleRecursive(outputHandle, fullPath, true);
-        var writable = await fileHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-    } catch (e) {
-        log('Error saving file ' + fileName + ': ' + e);
-    }
-}
-
-function startBatch() {
+async function startBatch() {
     if (isProcessing) return;
     if (batchFiles.length === 0) {
         alert("No valid files selected.");
         return;
     }
 
-    // Get Settings
-    var key = document.getElementById('decryptCode').value;
-    var mode = document.querySelector('input[name="batchMode"]:checked').value;
-    var isMz = false; // Detect or ask user? Existing tool has buttons for MV/MZ encrypt.
-    // For decrypt, it auto-detects or uses key.
-    // For encrypt, we need to know target format.
-    // Let's add a radio for MZ/MV in the batch UI or infer.
-    // For now, let's assume MV default or add a UI option.
-    // Actually, let's look at existing UI. It has "Encrypt MV" and "Encrypt MZ" buttons.
-    // I will add a radio group for Target Version if Encrypting.
+    const key = ui.decryptCode.value;
 
-    if (mode === 'encrypt') {
-        var targetVer = document.querySelector('input[name="batchTargetVer"]:checked');
-        isMz = targetVer && targetVer.value === 'mz';
-    }
-
-    // Header Settings
-    var header = null;
-    var verifyHeader = !document.querySelector('input[name="checkFakeHeader"][value="0"]').checked;
-    if (verifyHeader || mode === 'encrypt') {
-        header = {
-            len: parseInt(document.getElementById('headerLen').value) || 16,
-            signature: document.getElementById('signature').value || "5250474d56000000",
-            version: document.getElementById('version').value || "000301",
-            remain: document.getElementById('remain').value || "0000000000",
-            ignoreFake: !verifyHeader
-        };
-    } else {
-        header = { ignoreFake: true };
-    }
-
-    // Validate Key
-    if (mode !== 'restore' && !key) {
-        alert("Please enter a Decryption Code first!");
+    // Validation
+    if (currentMode !== 'restore' && !key) {
+        alert("Please enter a Decryption Key.");
         return;
     }
+
+    // Config
+    let isMz = false;
+    if (currentMode === 'encrypt') {
+        // Get radio value from M3 radio group
+        const radios = document.getElementsByName('targetVer');
+        for (const r of radios) {
+            if (r.checked && r.value === 'mz') isMz = true;
+        }
+    }
+
+    const header = {
+        len: 16,
+        signature: "5250474d56000000",
+        version: "000301",
+        remain: "0000000000",
+        ignoreFake: !ui.verifyHeader.checked
+    };
 
     isProcessing = true;
     processedCount = 0;
     totalCount = batchFiles.length;
+    ui.startBtn.disabled = true;
+    ui.statusText.textContent = "Processing...";
 
-    // Init Zip if no output handle
+    // Output handling (ZIP fallback for now as showDirectoryPicker needs HTTPS/Localhost and user interaction)
+    // We will try showDirectoryPicker if available, else ZIP.
+    outputHandle = null;
+    zipBatch = null;
+
+    if ('showDirectoryPicker' in window) {
+        try {
+            outputHandle = await window.showDirectoryPicker();
+        } catch (e) {
+            log("Output folder selection cancelled. Using ZIP fallback.");
+        }
+    }
+
     if (!outputHandle) {
         zipBatch = new JSZip();
     }
 
-    // Setup Workers
+    // Workers
     workers = [];
     idleWorkers = [];
-    for (var i = 0; i < maxWorkers; i++) {
-        var w = new Worker('scripts/worker.js');
-        w.onmessage = handleWorkerMessage;
-        workers.push(w);
-        idleWorkers.push(w);
+    for (let i = 0; i < maxWorkers; i++) {
+        try {
+            const w = new Worker('scripts/worker.js');
+            w.onmessage = handleWorkerMessage;
+            w.onerror = (e) => log(`Worker Error: ${e.message}`);
+            workers.push(w);
+            idleWorkers.push(w);
+        } catch (e) {
+            log(`Failed to create worker: ${e.message}`);
+        }
     }
 
-    log('Starting batch processing with ' + maxWorkers + ' workers...');
-    processQueue(key, mode, header, isMz);
+    if (workers.length === 0) {
+        alert("Could not create workers. Check console.");
+        isProcessing = false;
+        ui.startBtn.disabled = false;
+        return;
+    }
+
+    processQueue(key, currentMode, header, isMz);
 }
 
 function processQueue(key, mode, header, isMz) {
     while (idleWorkers.length > 0 && batchFiles.length > 0) {
-        var file = batchFiles.shift();
-        var worker = idleWorkers.pop();
+        const file = batchFiles.shift();
+        const worker = idleWorkers.pop();
 
         worker.postMessage({
             file: file,
@@ -212,147 +279,181 @@ function processQueue(key, mode, header, isMz) {
 }
 
 async function handleWorkerMessage(e) {
-    var data = e.data;
-    var worker = e.target;
+    const data = e.data;
+    const worker = e.target;
 
     if (data.status === 'success') {
+        // Save
         if (outputHandle) {
             await saveFileToDisk(data.blob, data.relativePath, data.fileName);
         } else if (zipBatch) {
-            // Add to zip
-            // Adjust path
-            var pathParts = data.relativePath.split('/');
+            const pathParts = data.relativePath.split('/');
             pathParts.pop();
             pathParts.push(data.fileName);
-            var fullPath = pathParts.join('/');
-            zipBatch.file(fullPath, data.blob);
+            zipBatch.file(pathParts.join('/'), data.blob);
         }
+
+        // Preview (only for images)
+        if (data.fileName.endsWith('.png')) {
+            addPreview(data.blob, data.fileName);
+        }
+
         processedCount++;
     } else {
-        log('Error processing ' + data.fileName + ': ' + data.error);
-        processedCount++; // Count errors as processed to finish
+        log(`Error: ${data.fileName} - ${data.error}`);
+        processedCount++;
     }
 
-    // Update UI
-    var percent = Math.floor((processedCount / totalCount) * 100);
-    document.getElementById('batchProgressBar').style.width = percent + '%';
-    document.getElementById('batchProgressBar').innerText = percent + '%';
+    // Update Progress
+    const percent = totalCount > 0 ? (processedCount / totalCount) : 0;
+    ui.progressBar.value = percent;
+    ui.statusText.textContent = `Processed ${processedCount}/${totalCount}`;
 
-    // Return worker to pool
+    // Return worker
     idleWorkers.push(worker);
 
-    // Continue
-    // We need to pass the same config. 
-    // I'll store the current config in a global or closure. 
-    // For simplicity, I'll just grab it from DOM again or rely on the fact that processQueue calls are synchronous in the loop, 
-    // but here we are in a callback.
-    // Actually, I should store the current batch config.
-    // Let's just pass nulls and let processQueue pick them up? No, processQueue needs args.
-    // I will make `currentBatchConfig` global.
-    processQueue(currentBatchConfig.key, currentBatchConfig.mode, currentBatchConfig.header, currentBatchConfig.isMz);
+    // Continue (need to pass config again, store in closure or global)
+    // For simplicity, grabbing from UI/Global state which hasn't changed
+    const key = ui.decryptCode.value;
+    // ... re-read config or pass it through. 
+    // Let's assume config is static during run.
+    // We need the same args as startBatch. 
+    // Refactor: store config in `currentRunConfig`
+    processQueue(currentRunConfig.key, currentRunConfig.mode, currentRunConfig.header, currentRunConfig.isMz);
 }
 
-var currentBatchConfig = {};
+// Store config for the current batch run
+var currentRunConfig = {};
 
-// Override startBatch to set config
-var originalStartBatch = startBatch;
-startBatch = function () {
-    // ... (validation code from above) ...
-    // Copy-paste validation logic here or refactor.
-    // Refactoring for clarity:
-
-    if (isProcessing) { log("processing"); return };
+// Wrap startBatch to set config
+const originalStartBatch = startBatch;
+startBatch = async function () {
+    // ... (validation) ...
+    if (isProcessing) return;
     if (batchFiles.length === 0) {
-        alert("No valid files Selected.");
+        alert("No valid files selected.");
         return;
     }
 
-    var key = document.getElementById('decryptCode').value;
-    var mode = document.querySelector('input[name="batchMode"]:checked').value;
-    var isMz = false;
-
-    if (mode === 'encrypt') {
-        var targetVer = document.querySelector('input[name="batchTargetVer"]:checked');
-        isMz = targetVer && targetVer.value === 'mz';
-    }
-
-    var header = null;
-    var verifyHeader = !document.querySelector('input[name="checkFakeHeader"][value="0"]').checked;
-    if (verifyHeader || mode === 'encrypt') {
-        header = {
-            len: parseInt(document.getElementById('headerLen').value) || 16,
-            signature: document.getElementById('signature').value || "5250474d56000000",
-            version: document.getElementById('version').value || "000301",
-            remain: document.getElementById('remain').value || "0000000000",
-            ignoreFake: !verifyHeader
-        };
-    } else {
-        header = { ignoreFake: true };
-    }
-
-    if (mode !== 'restore' && !key) {
-        alert("Please enter a Decryption Code first!");
+    const key = ui.decryptCode.value;
+    if (currentMode !== 'restore' && !key) {
+        alert("Please enter a Decryption Key.");
         return;
     }
+
+    let isMz = false;
+    if (currentMode === 'encrypt') {
+        const radios = document.getElementsByName('targetVer');
+        for (const r of radios) {
+            if (r.checked && r.value === 'mz') isMz = true;
+        }
+    }
+
+    const header = {
+        len: 16,
+        signature: "5250474d56000000",
+        version: "000301",
+        remain: "0000000000",
+        ignoreFake: !ui.verifyHeader.checked
+    };
+
+    currentRunConfig = { key, mode: currentMode, header, isMz };
 
     isProcessing = true;
     processedCount = 0;
     totalCount = batchFiles.length;
+    ui.startBtn.disabled = true;
+    ui.statusText.textContent = "Processing...";
+
+    outputHandle = null;
+    zipBatch = null;
+
+    if ('showDirectoryPicker' in window) {
+        try {
+            outputHandle = await window.showDirectoryPicker();
+        } catch (e) {
+            log("Output folder selection cancelled. Using ZIP fallback.");
+        }
+    }
 
     if (!outputHandle) {
         zipBatch = new JSZip();
     }
 
-    // Check for file protocol
-    if (window.location.protocol === 'file:') {
-        log("WARNING: You are running this via 'file://' protocol. Web Workers usually fail in this mode due to browser security restrictions. Please run this via a local server (e.g. 'python -m http.server' or VS Code Live Server).");
-    }
-
     workers = [];
     idleWorkers = [];
-    for (var i = 0; i < maxWorkers; i++) {
+    for (let i = 0; i < maxWorkers; i++) {
         try {
-            log("worker added " + i);
-            var w = new Worker('scripts/worker.js');
-            w.onerror = function (e) {
-                log("Worker Error: " + (e.message || "Unknown error. (If using file://, this is expected)"));
-            };
+            const w = new Worker('scripts/worker.js');
             w.onmessage = handleWorkerMessage;
+            w.onerror = (e) => log(`Worker Error: ${e.message}`);
             workers.push(w);
             idleWorkers.push(w);
         } catch (e) {
-            log("Failed to create Worker: " + e.message);
-            alert("Failed to create Web Worker. If you are using 'file://', please use a local server.");
-            isProcessing = false;
-            return;
+            log(`Failed to create worker: ${e.message}`);
         }
     }
 
-    currentBatchConfig = { key: key, mode: mode, header: header, isMz: isMz };
+    processQueue(key, currentMode, header, isMz);
+};
 
-    log('Starting batch processing...');
-    processQueue(key, mode, header, isMz);
+
+async function saveFileToDisk(blob, relativePath, fileName) {
+    if (!outputHandle) return;
+    try {
+        const pathParts = relativePath.split('/');
+        pathParts.pop();
+        pathParts.push(fileName);
+
+        // Recursive handle get
+        let current = outputHandle;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            current = await current.getDirectoryHandle(pathParts[i], { create: true });
+        }
+        const fileHandle = await current.getFileHandle(pathParts[pathParts.length - 1], { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+    } catch (e) {
+        log(`Save Error: ${e}`);
+    }
+}
+
+function addPreview(blob, name) {
+    const card = document.createElement('div');
+    card.className = 'preview-card';
+
+    const img = document.createElement('img');
+    img.className = 'preview-image';
+    img.src = URL.createObjectURL(blob);
+
+    const info = document.createElement('div');
+    info.className = 'preview-info';
+    info.textContent = name;
+    info.title = name;
+
+    card.appendChild(img);
+    card.appendChild(info);
+    ui.previewGrid.appendChild(card);
 }
 
 function finishBatch() {
     isProcessing = false;
-    log('Batch processing complete.');
+    ui.startBtn.disabled = false;
+    ui.statusText.textContent = "Done!";
+    log("Batch processing complete.");
 
-    // Terminate workers
-    for (var i = 0; i < workers.length; i++) {
-        workers[i].terminate();
-    }
+    workers.forEach(w => w.terminate());
     workers = [];
-    idleWorkers = [];
 
     if (zipBatch) {
-        log('Generating ZIP file...');
-        zipBatch.generateAsync({ type: "blob" }).then(function (content) {
+        log("Generating ZIP...");
+        zipBatch.generateAsync({ type: "blob" }).then(content => {
             saveAs(content, "batch_output.zip");
-            log('ZIP file downloaded.');
-            zipBatch = null;
+            log("ZIP downloaded.");
         });
-    } else {
-        alert("Batch processing complete!");
     }
 }
+
+// Init
+window.addEventListener('load', initBatch);
