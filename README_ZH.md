@@ -14,9 +14,10 @@
 ### 主要特性
 *   **🚀 批量处理：** 使用多线程 Web Workers 高效处理整个文件夹。
 *   **🎨 现代 UI：** 基于 **Material Design 3** 完全重构，带来美观直观的用户体验。
-*   **⚡ 性能优化：**
-    *   **文件夹直写：** 处理后的文件直接写入硬盘（支持 Chrome/Edge）。
-    *   **ZIP 导出：** 针对大量小文件优化的快速归档导出。
+<img width="1855" height="860" alt="image" src="https://github.com/user-attachments/assets/c8434561-e3e1-475c-9721-39ab9fbf3ce9" />
+
+<img width="1714" height="876" alt="image" src="https://github.com/user-attachments/assets/8c577884-b4de-48b9-a098-c5bd1648999e" />
+
 *   **🖼️ 增强预览：**
     *   按目录结构分组显示。
     *   点击图片可全屏查看（灯箱效果）。
