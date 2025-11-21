@@ -39,6 +39,14 @@ This is very easy:
 - Extract/Put it where ever you want
 - Done :)
 
+### Running locally with Node.js (Recommended for Batch Tool)
+
+1.  Install [Node.js](https://nodejs.org/).
+2.  Open a terminal in the project folder.
+3.  Run `npm install` to install dependencies.
+4.  Run `npm start` to start the local server.
+5.  Open the URL shown in the terminal (usually `http://localhost:5173`).
+
 ## How to use?
 
 ### If you downloaded this Script on your Computer (Pre Step)

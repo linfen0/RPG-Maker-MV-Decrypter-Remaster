@@ -261,9 +261,9 @@ startBatch = function () {
     // Copy-paste validation logic here or refactor.
     // Refactoring for clarity:
 
-    if (isProcessing) return;
+    if (isProcessing) { log("processing"); return };
     if (batchFiles.length === 0) {
-        alert("No valid files selected.");
+        alert("No valid files Selected.");
         return;
     }
 
@@ -303,13 +303,29 @@ startBatch = function () {
         zipBatch = new JSZip();
     }
 
+    // Check for file protocol
+    if (window.location.protocol === 'file:') {
+        log("WARNING: You are running this via 'file://' protocol. Web Workers usually fail in this mode due to browser security restrictions. Please run this via a local server (e.g. 'python -m http.server' or VS Code Live Server).");
+    }
+
     workers = [];
     idleWorkers = [];
     for (var i = 0; i < maxWorkers; i++) {
-        var w = new Worker('scripts/worker.js');
-        w.onmessage = handleWorkerMessage;
-        workers.push(w);
-        idleWorkers.push(w);
+        try {
+            log("worker added " + i);
+            var w = new Worker('scripts/worker.js');
+            w.onerror = function (e) {
+                log("Worker Error: " + (e.message || "Unknown error. (If using file://, this is expected)"));
+            };
+            w.onmessage = handleWorkerMessage;
+            workers.push(w);
+            idleWorkers.push(w);
+        } catch (e) {
+            log("Failed to create Worker: " + e.message);
+            alert("Failed to create Web Worker. If you are using 'file://', please use a local server.");
+            isProcessing = false;
+            return;
+        }
     }
 
     currentBatchConfig = { key: key, mode: mode, header: header, isMz: isMz };
