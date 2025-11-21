@@ -12,6 +12,7 @@ var processedCount = 0;
 var totalCount = 0;
 var zipBatch = null;
 var currentMode = 'decrypt'; // 'decrypt', 'encrypt', 'restore'
+var outputMode = 'folder'; // 'folder', 'zip'
 
 // UI Elements
 var ui = {
@@ -31,7 +32,11 @@ var ui = {
     detectKeyBtn: null,
     encryptOptions: null,
     verifyHeader: null,
-    themeToggle: null
+    themeToggle: null,
+    langToggle: null,
+    lightbox: null,
+    lightboxImg: null,
+    closeLightbox: null
 };
 
 function initBatch() {
@@ -53,6 +58,10 @@ function initBatch() {
     ui.encryptOptions = document.getElementById('encryptOptions');
     ui.verifyHeader = document.getElementById('verifyHeader');
     ui.themeToggle = document.getElementById('themeToggle');
+    ui.langToggle = document.getElementById('langToggle');
+    ui.lightbox = document.getElementById('lightbox');
+    ui.lightboxImg = document.getElementById('lightboxImg');
+    ui.closeLightbox = document.getElementById('closeLightbox');
 
     // Event Listeners
     ui.tabs.addEventListener('change', handleModeChange);
@@ -66,6 +75,13 @@ function initBatch() {
     ui.startBtn.addEventListener('click', startBatch);
     ui.detectKeyBtn.addEventListener('click', detectKey);
     ui.themeToggle.addEventListener('click', toggleTheme);
+    ui.langToggle.addEventListener('click', toggleLang);
+
+    // Lightbox
+    ui.closeLightbox.addEventListener('click', () => ui.lightbox.classList.add('hidden'));
+    ui.lightbox.addEventListener('click', (e) => {
+        if (e.target === ui.lightbox) ui.lightbox.classList.add('hidden');
+    });
 
     // Drag & Drop
     ui.dropZone.addEventListener('dragover', (e) => {
@@ -78,19 +94,21 @@ function initBatch() {
     ui.dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         ui.dropZone.classList.remove('drag-over');
-        handleFileSelect(e); // Reuse logic, might need adaptation for DataTransfer items
+        handleFileSelect(e);
     });
 
     // Check for file protocol
     if (window.location.protocol === 'file:') {
-        log("WARNING: You are running this via 'file://' protocol. Web Workers usually fail in this mode.");
+        log(window.i18n.t('warn.fileProtocol'));
     }
 
     updateUIForMode();
+
+    // Initial i18n update
+    window.i18n.setLanguage(window.i18n.currentLang());
 }
 
 function handleModeChange(e) {
-    // md-tabs emits change event, but we check active tab
     if (document.getElementById('tab-decrypt').active) currentMode = 'decrypt';
     else if (document.getElementById('tab-encrypt').active) currentMode = 'encrypt';
     else if (document.getElementById('tab-restore').active) currentMode = 'restore';
@@ -99,14 +117,11 @@ function handleModeChange(e) {
 }
 
 function updateUIForMode() {
-    // Reset UI state based on mode
     if (currentMode === 'decrypt') {
         ui.decryptCode.classList.remove('hidden');
         ui.encryptOptions.classList.add('hidden');
     } else if (currentMode === 'encrypt') {
-        ui.decryptCode.classList.remove('hidden'); // Encrypt also needs key usually? Or just for re-encrypt?
-        // Original tool: Encrypt needs key if re-encrypting? The original tool logic says:
-        // "Get the En/Decrypt-Code." for both.
+        ui.decryptCode.classList.remove('hidden');
         ui.encryptOptions.classList.remove('hidden');
     } else if (currentMode === 'restore') {
         ui.decryptCode.classList.add('hidden');
@@ -120,33 +135,30 @@ function toggleTheme() {
     icon.textContent = document.body.classList.contains('dark-theme') ? 'light_mode' : 'dark_mode';
 }
 
+function toggleLang() {
+    const newLang = window.i18n.currentLang() === 'en' ? 'zh' : 'en';
+    window.i18n.setLanguage(newLang);
+}
+
 function handleFileSelect(e) {
     let files = [];
     if (e.dataTransfer) {
-        // Drag & Drop
-        // Note: recursive directory traversal for DnD is complex, simpler to just take files for now
-        // or use webkitGetAsEntry. For this demo, let's stick to flat files from DnD or use input
-        // If user drops a folder, 'files' list might be empty or contain the folder as a file with size 0 (browser dependent)
-        // For robust folder drop, we need FileSystemEntry API.
-        // Let's support basic file drop for now.
         files = Array.from(e.dataTransfer.files);
     } else {
         files = Array.from(e.target.files);
     }
 
-    // Filter files
     batchFiles = files.filter(f => {
         const ext = f.name.split('.').pop().toLowerCase();
         return ['rpgmvp', 'rpgmvm', 'rpgmvo', 'png_', 'ogg_', 'm4a_', 'png', 'ogg', 'm4a'].includes(ext);
     });
 
-    ui.fileCount.textContent = `${batchFiles.length} files selected`;
+    ui.fileCount.textContent = `${batchFiles.length} files selected`; // i18n todo: dynamic count
     log(`Selected ${batchFiles.length} valid files.`);
 
-    // Reset Progress
     ui.progressBar.value = 0;
     processedCount = 0;
-    ui.previewGrid.innerHTML = ''; // Clear previews
+    ui.previewGrid.innerHTML = '';
 }
 
 function log(msg) {
@@ -158,13 +170,10 @@ function detectKey() {
     document.getElementById('systemFileDetect').click();
 }
 
-// Setup detect listener
 document.getElementById('systemFileDetect').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Use existing Decrypter logic (need to adapt since it was tightly coupled to DOM)
-    // We can use Decrypter.detectEncryptionCode directly
     Decrypter.detectEncryptionCode(new RPGFile(file, null), 16, (key) => {
         if (key) {
             ui.decryptCode.value = key;
@@ -180,22 +189,25 @@ document.getElementById('systemFileDetect').addEventListener('change', (e) => {
 async function startBatch() {
     if (isProcessing) return;
     if (batchFiles.length === 0) {
-        alert("No valid files selected.");
+        alert(window.i18n.t('msg.noFiles'));
         return;
     }
 
     const key = ui.decryptCode.value;
 
-    // Validation
     if (currentMode !== 'restore' && !key) {
-        alert("Please enter a Decryption Key.");
+        alert(window.i18n.t('msg.enterKey'));
         return;
     }
 
-    // Config
+    // Get Output Mode
+    const outputRadios = document.getElementsByName('outputMode');
+    for (const r of outputRadios) {
+        if (r.checked) outputMode = r.value;
+    }
+
     let isMz = false;
     if (currentMode === 'encrypt') {
-        // Get radio value from M3 radio group
         const radios = document.getElementsByName('targetVer');
         for (const r of radios) {
             if (r.checked && r.value === 'mz') isMz = true;
@@ -214,33 +226,39 @@ async function startBatch() {
     processedCount = 0;
     totalCount = batchFiles.length;
     ui.startBtn.disabled = true;
-    ui.statusText.textContent = "Processing...";
+    ui.statusText.textContent = window.i18n.t('status.processing');
 
-    // Output handling (ZIP fallback for now as showDirectoryPicker needs HTTPS/Localhost and user interaction)
-    // We will try showDirectoryPicker if available, else ZIP.
     outputHandle = null;
     zipBatch = null;
 
-    if ('showDirectoryPicker' in window) {
-        try {
-            outputHandle = await window.showDirectoryPicker();
-        } catch (e) {
-            log("Output folder selection cancelled. Using ZIP fallback.");
+    if (outputMode === 'folder') {
+        if ('showDirectoryPicker' in window) {
+            try {
+                outputHandle = await window.showDirectoryPicker();
+            } catch (e) {
+                log(window.i18n.t('msg.cancelled'));
+                isProcessing = false;
+                ui.startBtn.disabled = false;
+                return;
+            }
+        } else {
+            // Fallback to ZIP if API not supported
+            log("File System Access API not supported. Falling back to ZIP.");
+            outputMode = 'zip';
         }
     }
 
-    if (!outputHandle) {
+    if (outputMode === 'zip') {
         zipBatch = new JSZip();
     }
 
-    // Workers
     workers = [];
     idleWorkers = [];
     for (let i = 0; i < maxWorkers; i++) {
         try {
             const w = new Worker('scripts/worker.js');
             w.onmessage = handleWorkerMessage;
-            w.onerror = (e) => log(`Worker Error: ${e.message}`);
+            w.onerror = (e) => log(`${window.i18n.t('msg.workerError')}: ${e.message}`);
             workers.push(w);
             idleWorkers.push(w);
         } catch (e) {
@@ -255,20 +273,23 @@ async function startBatch() {
         return;
     }
 
-    processQueue(key, currentMode, header, isMz);
+    currentRunConfig = { key, mode: currentMode, header, isMz };
+    processQueue();
 }
 
-function processQueue(key, mode, header, isMz) {
+var currentRunConfig = {};
+
+function processQueue() {
     while (idleWorkers.length > 0 && batchFiles.length > 0) {
         const file = batchFiles.shift();
         const worker = idleWorkers.pop();
 
         worker.postMessage({
             file: file,
-            mode: mode,
-            key: key,
-            header: header,
-            isMz: isMz,
+            mode: currentRunConfig.mode,
+            key: currentRunConfig.key,
+            header: currentRunConfig.header,
+            isMz: currentRunConfig.isMz,
             relativePath: file.webkitRelativePath || file.name
         });
     }
@@ -283,8 +304,7 @@ async function handleWorkerMessage(e) {
     const worker = e.target;
 
     if (data.status === 'success') {
-        // Save
-        if (outputHandle) {
+        if (outputMode === 'folder' && outputHandle) {
             await saveFileToDisk(data.blob, data.relativePath, data.fileName);
         } else if (zipBatch) {
             const pathParts = data.relativePath.split('/');
@@ -293,9 +313,8 @@ async function handleWorkerMessage(e) {
             zipBatch.file(pathParts.join('/'), data.blob);
         }
 
-        // Preview (only for images)
         if (data.fileName.endsWith('.png')) {
-            addPreview(data.blob, data.fileName);
+            addPreview(data.blob, data.fileName, data.relativePath);
         }
 
         processedCount++;
@@ -304,99 +323,13 @@ async function handleWorkerMessage(e) {
         processedCount++;
     }
 
-    // Update Progress
     const percent = totalCount > 0 ? (processedCount / totalCount) : 0;
     ui.progressBar.value = percent;
-    ui.statusText.textContent = `Processed ${processedCount}/${totalCount}`;
+    ui.statusText.textContent = `${window.i18n.t('status.processing')} ${processedCount}/${totalCount}`;
 
-    // Return worker
     idleWorkers.push(worker);
-
-    // Continue (need to pass config again, store in closure or global)
-    // For simplicity, grabbing from UI/Global state which hasn't changed
-    const key = ui.decryptCode.value;
-    // ... re-read config or pass it through. 
-    // Let's assume config is static during run.
-    // We need the same args as startBatch. 
-    // Refactor: store config in `currentRunConfig`
-    processQueue(currentRunConfig.key, currentRunConfig.mode, currentRunConfig.header, currentRunConfig.isMz);
+    processQueue();
 }
-
-// Store config for the current batch run
-var currentRunConfig = {};
-
-// Wrap startBatch to set config
-const originalStartBatch = startBatch;
-startBatch = async function () {
-    // ... (validation) ...
-    if (isProcessing) return;
-    if (batchFiles.length === 0) {
-        alert("No valid files selected.");
-        return;
-    }
-
-    const key = ui.decryptCode.value;
-    if (currentMode !== 'restore' && !key) {
-        alert("Please enter a Decryption Key.");
-        return;
-    }
-
-    let isMz = false;
-    if (currentMode === 'encrypt') {
-        const radios = document.getElementsByName('targetVer');
-        for (const r of radios) {
-            if (r.checked && r.value === 'mz') isMz = true;
-        }
-    }
-
-    const header = {
-        len: 16,
-        signature: "5250474d56000000",
-        version: "000301",
-        remain: "0000000000",
-        ignoreFake: !ui.verifyHeader.checked
-    };
-
-    currentRunConfig = { key, mode: currentMode, header, isMz };
-
-    isProcessing = true;
-    processedCount = 0;
-    totalCount = batchFiles.length;
-    ui.startBtn.disabled = true;
-    ui.statusText.textContent = "Processing...";
-
-    outputHandle = null;
-    zipBatch = null;
-
-    if ('showDirectoryPicker' in window) {
-        try {
-            outputHandle = await window.showDirectoryPicker();
-        } catch (e) {
-            log("Output folder selection cancelled. Using ZIP fallback.");
-        }
-    }
-
-    if (!outputHandle) {
-        zipBatch = new JSZip();
-    }
-
-    workers = [];
-    idleWorkers = [];
-    for (let i = 0; i < maxWorkers; i++) {
-        try {
-            const w = new Worker('scripts/worker.js');
-            w.onmessage = handleWorkerMessage;
-            w.onerror = (e) => log(`Worker Error: ${e.message}`);
-            workers.push(w);
-            idleWorkers.push(w);
-        } catch (e) {
-            log(`Failed to create worker: ${e.message}`);
-        }
-    }
-
-    processQueue(key, currentMode, header, isMz);
-};
-
 
 async function saveFileToDisk(blob, relativePath, fileName) {
     if (!outputHandle) return;
@@ -405,9 +338,10 @@ async function saveFileToDisk(blob, relativePath, fileName) {
         pathParts.pop();
         pathParts.push(fileName);
 
-        // Recursive handle get
         let current = outputHandle;
         for (let i = 0; i < pathParts.length - 1; i++) {
+            // Skip empty parts if any
+            if (!pathParts[i]) continue;
             current = await current.getDirectoryHandle(pathParts[i], { create: true });
         }
         const fileHandle = await current.getFileHandle(pathParts[pathParts.length - 1], { create: true });
@@ -415,17 +349,44 @@ async function saveFileToDisk(blob, relativePath, fileName) {
         await writable.write(blob);
         await writable.close();
     } catch (e) {
-        log(`Save Error: ${e}`);
+        log(`${window.i18n.t('msg.saveError')}: ${e}`);
     }
 }
 
-function addPreview(blob, name) {
+function addPreview(blob, name, relativePath) {
+    // Determine directory
+    const pathParts = relativePath.split('/');
+    pathParts.pop(); // remove filename
+    const dirName = pathParts.length > 0 ? pathParts.join('/') : 'Root';
+
+    // Find or create directory section
+    let dirSection = document.getElementById(`dir-${dirName}`);
+    if (!dirSection) {
+        dirSection = document.createElement('div');
+        dirSection.id = `dir-${dirName}`;
+        dirSection.className = 'directory-group';
+
+        const header = document.createElement('div');
+        header.className = 'directory-header';
+        header.textContent = dirName;
+
+        const items = document.createElement('div');
+        items.className = 'directory-items';
+
+        dirSection.appendChild(header);
+        dirSection.appendChild(items);
+        ui.previewGrid.appendChild(dirSection);
+    }
+
+    const itemsContainer = dirSection.querySelector('.directory-items');
+
     const card = document.createElement('div');
     card.className = 'preview-card';
 
     const img = document.createElement('img');
     img.className = 'preview-image';
-    img.src = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    img.src = url;
 
     const info = document.createElement('div');
     info.className = 'preview-info';
@@ -434,14 +395,21 @@ function addPreview(blob, name) {
 
     card.appendChild(img);
     card.appendChild(info);
-    ui.previewGrid.appendChild(card);
+
+    // Lightbox event
+    card.addEventListener('click', () => {
+        ui.lightboxImg.src = url;
+        ui.lightbox.classList.remove('hidden');
+    });
+
+    itemsContainer.appendChild(card);
 }
 
 function finishBatch() {
     isProcessing = false;
     ui.startBtn.disabled = false;
-    ui.statusText.textContent = "Done!";
-    log("Batch processing complete.");
+    ui.statusText.textContent = window.i18n.t('status.done');
+    log(window.i18n.t('status.done'));
 
     workers.forEach(w => w.terminate());
     workers = [];
@@ -450,10 +418,9 @@ function finishBatch() {
         log("Generating ZIP...");
         zipBatch.generateAsync({ type: "blob" }).then(content => {
             saveAs(content, "batch_output.zip");
-            log("ZIP downloaded.");
+            log(window.i18n.t('msg.zipDownloaded'));
         });
     }
 }
 
-// Init
 window.addEventListener('load', initBatch);

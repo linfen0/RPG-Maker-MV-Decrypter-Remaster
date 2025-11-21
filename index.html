@@ -30,9 +30,12 @@
 			<md-icon-button>
 				<md-icon>menu</md-icon>
 			</md-icon-button>
-			<span class="headline-small">RPG Decrypter</span>
+			<span class="headline-small" data-i18n="app.title">RPG Decrypter</span>
 			<div class="spacer"></div>
-			<md-icon-button id="themeToggle">
+			<md-icon-button id="langToggle" data-i18n-tooltip="tooltip.lang">
+				<md-icon>language</md-icon>
+			</md-icon-button>
+			<md-icon-button id="themeToggle" data-i18n-tooltip="tooltip.theme">
 				<md-icon>dark_mode</md-icon>
 			</md-icon-button>
 		</header>
@@ -44,15 +47,15 @@
 			<div class="mode-switcher-container">
 				<md-tabs id="modeTabs">
 					<md-primary-tab id="tab-decrypt" aria-selected="true">
-						Decrypt
+						<span data-i18n="tab.decrypt">Decrypt</span>
 						<md-icon slot="icon">lock_open</md-icon>
 					</md-primary-tab>
 					<md-primary-tab id="tab-encrypt">
-						Encrypt
+						<span data-i18n="tab.encrypt">Encrypt</span>
 						<md-icon slot="icon">lock</md-icon>
 					</md-primary-tab>
 					<md-primary-tab id="tab-restore">
-						Restore
+						<span data-i18n="tab.restore">Restore</span>
 						<md-icon slot="icon">image_search</md-icon>
 					</md-primary-tab>
 				</md-tabs>
@@ -64,15 +67,15 @@
 				<!-- Folder Drop Zone -->
 				<div id="dropZone" class="drop-zone">
 					<md-icon class="drop-icon">folder_open</md-icon>
-					<span class="title-large">Drop Folder Here</span>
-					<span class="body-medium">or</span>
+					<span class="title-large" data-i18n="drop.title">Drop Folder Here</span>
+					<span class="body-medium" data-i18n="drop.or">or</span>
 					<md-filled-button id="selectFolderBtn">
 						<md-icon slot="icon">create_new_folder</md-icon>
-						Select Folder
+						<span data-i18n="btn.selectFolder">Select Folder</span>
 					</md-filled-button>
 					<div class="secondary-actions">
 						<md-text-button id="selectFilesBtn">
-							Select Single Files
+							<span data-i18n="btn.selectFiles">Select Single Files</span>
 						</md-text-button>
 					</div>
 				</div>
@@ -82,21 +85,21 @@
 				<div class="settings-card">
 					<div class="settings-header">
 						<md-icon>settings</md-icon>
-						<span class="title-medium">Settings</span>
+						<span class="title-medium" data-i18n="card.settings">Settings</span>
 					</div>
 
 					<div class="settings-content">
 						<!-- Decrypt/Encrypt Key -->
-						<md-outlined-text-field id="decryptCode" label="Decryption Key" type="text"
-							class="full-width hidden">
-							<md-icon-button slot="trailing-icon" id="detectKeyBtn" title="Detect from System.json">
+						<md-outlined-text-field id="decryptCode" label="Decryption Key" data-i18n="label.decryptKey"
+							type="text" class="full-width hidden">
+							<md-icon-button slot="trailing-icon" id="detectKeyBtn" data-i18n-tooltip="btn.detectKey">
 								<md-icon>search</md-icon>
 							</md-icon-button>
 						</md-outlined-text-field>
 
 						<!-- Encrypt Target Version -->
 						<div id="encryptOptions" class="radio-group hidden">
-							<span class="label-large">Target Version:</span>
+							<span class="label-large" data-i18n="label.targetVer">Target Version:</span>
 							<label class="radio-label">
 								<md-radio name="targetVer" value="mv" checked></md-radio>
 								MV
@@ -111,7 +114,20 @@
 						<div class="header-options">
 							<label class="checkbox-label">
 								<md-checkbox id="verifyHeader" checked></md-checkbox>
-								Verify/Add Fake Header
+								<span data-i18n="check.verifyHeader">Verify/Add Fake Header</span>
+							</label>
+						</div>
+
+						<!-- Output Mode -->
+						<div class="output-options">
+							<span class="label-large" data-i18n="label.outputMode">Output Mode:</span>
+							<label class="radio-label">
+								<md-radio name="outputMode" value="folder" checked></md-radio>
+								<span data-i18n="radio.folder">Folder (Direct Write)</span>
+							</label>
+							<label class="radio-label">
+								<md-radio name="outputMode" value="zip"></md-radio>
+								<span data-i18n="radio.zip">ZIP Archive</span>
 							</label>
 						</div>
 					</div>
@@ -121,7 +137,7 @@
 			<!-- Progress & Actions -->
 			<div class="process-area">
 				<div class="info-row">
-					<span class="body-large" id="statusText">Ready</span>
+					<span class="body-large" id="statusText" data-i18n="status.ready">Ready</span>
 					<span class="body-large" id="fileCount">0 files</span>
 				</div>
 				<md-linear-progress id="progressBar" value="0"></md-linear-progress>
@@ -137,7 +153,7 @@
 			<div class="results-area">
 				<details class="log-details">
 					<summary>
-						<span class="label-large">Process Log</span>
+						<span class="label-large" data-i18n="label.log">Process Log</span>
 						<md-icon>expand_more</md-icon>
 					</summary>
 					<div class="log-content">
@@ -153,6 +169,16 @@
 		</main>
 	</div>
 
+	<!-- Lightbox Overlay -->
+	<div id="lightbox" class="lightbox hidden">
+		<div class="lightbox-content">
+			<img id="lightboxImg" src="" alt="Preview">
+			<md-icon-button id="closeLightbox" class="close-btn">
+				<md-icon>close</md-icon>
+			</md-icon-button>
+		</div>
+	</div>
+
 	<!-- Hidden Inputs -->
 	<input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
 	<input type="file" id="fileInput" multiple style="display: none;">
@@ -166,8 +192,7 @@
 	<script src="scripts/ErrorException.js"></script>
 	<script src="scripts/Decrypter.js"></script>
 	<script src="scripts/ZIP.js"></script>
-	<!-- <script src="scripts/functions.js"></script> -->
-	<!-- Legacy functions might not be needed or need refactoring -->
+	<script src="scripts/i18n.js"></script>
 	<script src="scripts/batch.js"></script>
 </body>
 
