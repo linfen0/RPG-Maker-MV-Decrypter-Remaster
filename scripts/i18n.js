@@ -33,7 +33,13 @@ const translations = {
         "msg.cancelled": "Cancelled.",
         "warn.fileProtocol": "WARNING: You are running this via 'file://' protocol. Web Workers usually fail in this mode.",
         "tooltip.theme": "Toggle Dark/Light Mode",
-        "tooltip.lang": "Switch Language"
+        "tooltip.lang": "Switch Language",
+        "help.title": "Help",
+        "help.close": "Close",
+        "help.decryptKey": "The decryption key is required to decrypt files. You can find it in the 'System.json' file of the game (located in 'www/data/' or 'data/'). Use the 'Detect' button to automatically find it.",
+        "help.fakeHeader": "RPG Maker games often use a fake header to prevent standard tools from opening the files. This option verifies and restores/adds this header to ensure compatibility with the game engine.",
+        "help.outputMode": "Choose how to save the processed files. 'Folder' writes files directly to your disk (requires permission). 'ZIP Archive' creates a single compressed file, which is faster for many small files.",
+        "help.targetVer": "Select the RPG Maker version the game was built with. MV and MZ use slightly different encryption methods."
     },
     zh: {
         "app.title": "RPG 解包器",
@@ -65,7 +71,13 @@ const translations = {
         "msg.cancelled": "已取消。",
         "warn.fileProtocol": "警告: 您正在使用 'file://' 协议运行。Web Workers 在此模式下通常会失败。",
         "tooltip.theme": "切换深色/浅色模式",
-        "tooltip.lang": "切换语言"
+        "tooltip.lang": "切换语言",
+        "help.title": "帮助",
+        "help.close": "关闭",
+        "help.decryptKey": "解密文件需要密钥。您可以在游戏的 'System.json' 文件中找到它（位于 'www/data/' 或 'data/'）。使用 '检测' 按钮可以自动查找。",
+        "help.fakeHeader": "RPG Maker 游戏通常使用伪造的文件头来防止标准工具打开文件。此选项验证并恢复/添加此文件头，以确与游戏引擎的兼容性。",
+        "help.outputMode": "选择如何保存处理后的文件。'文件夹' 直接写入磁盘（需要权限）。'ZIP 压缩包' 创建一个压缩文件，对于大量小文件来说更快。",
+        "help.targetVer": "选择游戏使用的 RPG Maker 版本。MV 和 MZ 使用略有不同的加密方法。"
     }
 };
 

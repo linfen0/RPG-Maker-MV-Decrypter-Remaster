@@ -81,8 +81,8 @@
 				</div>
 
 				<!-- Settings Card (Context Aware) -->
-				<md-elevation></md-elevation>
 				<div class="settings-card">
+					<md-elevation></md-elevation>
 					<div class="settings-header">
 						<md-icon>settings</md-icon>
 						<span class="title-medium" data-i18n="card.settings">Settings</span>
@@ -90,16 +90,27 @@
 
 					<div class="settings-content">
 						<!-- Decrypt/Encrypt Key -->
-						<md-outlined-text-field id="decryptCode" label="Decryption Key" data-i18n="label.decryptKey"
-							type="text" class="full-width hidden">
-							<md-icon-button slot="trailing-icon" id="detectKeyBtn" data-i18n-tooltip="btn.detectKey">
-								<md-icon>search</md-icon>
+						<div class="setting-row">
+							<md-outlined-text-field id="decryptCode" label="Decryption Key" data-i18n="label.decryptKey"
+								type="text" class="full-width hidden">
+								<md-icon-button slot="trailing-icon" id="detectKeyBtn"
+									data-i18n-tooltip="btn.detectKey">
+									<md-icon>search</md-icon>
+								</md-icon-button>
+							</md-outlined-text-field>
+							<md-icon-button class="help-btn hidden" id="helpKey" data-help="help.decryptKey">
+								<md-icon>help_outline</md-icon>
 							</md-icon-button>
-						</md-outlined-text-field>
+						</div>
 
 						<!-- Encrypt Target Version -->
 						<div id="encryptOptions" class="radio-group hidden">
-							<span class="label-large" data-i18n="label.targetVer">Target Version:</span>
+							<div class="group-header">
+								<span class="label-large" data-i18n="label.targetVer">Target Version:</span>
+								<md-icon-button class="help-btn" data-help="help.targetVer">
+									<md-icon>help_outline</md-icon>
+								</md-icon-button>
+							</div>
 							<label class="radio-label">
 								<md-radio name="targetVer" value="mv" checked></md-radio>
 								MV
@@ -116,11 +127,19 @@
 								<md-checkbox id="verifyHeader" checked></md-checkbox>
 								<span data-i18n="check.verifyHeader">Verify/Add Fake Header</span>
 							</label>
+							<md-icon-button class="help-btn" data-help="help.fakeHeader">
+								<md-icon>help_outline</md-icon>
+							</md-icon-button>
 						</div>
 
 						<!-- Output Mode -->
 						<div class="output-options">
-							<span class="label-large" data-i18n="label.outputMode">Output Mode:</span>
+							<div class="group-header">
+								<span class="label-large" data-i18n="label.outputMode">Output Mode:</span>
+								<md-icon-button class="help-btn" data-help="help.outputMode">
+									<md-icon>help_outline</md-icon>
+								</md-icon-button>
+							</div>
 							<label class="radio-label">
 								<md-radio name="outputMode" value="folder" checked></md-radio>
 								<span data-i18n="radio.folder">Folder (Direct Write)</span>
@@ -178,6 +197,17 @@
 			</md-icon-button>
 		</div>
 	</div>
+
+	<!-- Help Dialog -->
+	<md-dialog id="helpDialog">
+		<div slot="headline" data-i18n="help.title">Help</div>
+		<div slot="content" id="helpContent">
+			<!-- Content injected by JS -->
+		</div>
+		<div slot="actions">
+			<md-text-button id="closeHelpBtn" data-i18n="help.close">Close</md-text-button>
+		</div>
+	</md-dialog>
 
 	<!-- Hidden Inputs -->
 	<input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">

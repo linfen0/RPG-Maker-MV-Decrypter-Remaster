@@ -36,7 +36,11 @@ var ui = {
     langToggle: null,
     lightbox: null,
     lightboxImg: null,
-    closeLightbox: null
+    closeLightbox: null,
+    helpDialog: null,
+    helpContent: null,
+    closeHelpBtn: null,
+    helpKey: null
 };
 
 function initBatch() {
@@ -63,6 +67,12 @@ function initBatch() {
     ui.lightboxImg = document.getElementById('lightboxImg');
     ui.closeLightbox = document.getElementById('closeLightbox');
 
+    // Help Dialog Elements
+    ui.helpDialog = document.getElementById('helpDialog');
+    ui.helpContent = document.getElementById('helpContent');
+    ui.closeHelpBtn = document.getElementById('closeHelpBtn');
+    ui.helpKey = document.getElementById('helpKey');
+
     // Event Listeners
     ui.tabs.addEventListener('change', handleModeChange);
 
@@ -81,6 +91,16 @@ function initBatch() {
     ui.closeLightbox.addEventListener('click', () => ui.lightbox.classList.add('hidden'));
     ui.lightbox.addEventListener('click', (e) => {
         if (e.target === ui.lightbox) ui.lightbox.classList.add('hidden');
+    });
+
+    // Help Dialog
+    ui.closeHelpBtn.addEventListener('click', () => ui.helpDialog.close());
+    document.querySelectorAll('.help-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const key = e.currentTarget.getAttribute('data-help');
+            ui.helpContent.textContent = window.i18n.t(key);
+            ui.helpDialog.show();
+        });
     });
 
     // Drag & Drop
@@ -119,12 +139,15 @@ function handleModeChange(e) {
 function updateUIForMode() {
     if (currentMode === 'decrypt') {
         ui.decryptCode.classList.remove('hidden');
+        ui.helpKey.classList.remove('hidden');
         ui.encryptOptions.classList.add('hidden');
     } else if (currentMode === 'encrypt') {
         ui.decryptCode.classList.remove('hidden');
+        ui.helpKey.classList.remove('hidden');
         ui.encryptOptions.classList.remove('hidden');
     } else if (currentMode === 'restore') {
         ui.decryptCode.classList.add('hidden');
+        ui.helpKey.classList.add('hidden');
         ui.encryptOptions.classList.add('hidden');
     }
 }
