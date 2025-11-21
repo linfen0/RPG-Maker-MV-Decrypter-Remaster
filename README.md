@@ -16,6 +16,7 @@ This project is a modernized and enhanced version of [Petschko's RPG-Maker-MV-De
 *   **🎨 Modern UI:** Completely redesigned with **Material Design 3** for a beautiful and intuitive experience.
 <img width="1846" height="879" alt="image" src="https://github.com/user-attachments/assets/c84f4468-1bcd-43c1-9145-c5779565c008" />
 <img width="1837" height="872" alt="image" src="https://github.com/user-attachments/assets/675e5a29-5a21-4fbc-b4b6-e7d56367ab63" />
+<img width="1834" height="834" alt="image" src="https://github.com/user-attachments/assets/e84a9e44-cb5c-4e66-9b68-168f48e58854" />
 
 *   **🖼️ Enhanced Preview:**
     *   Grouped by directory structure.
