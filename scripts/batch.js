@@ -43,7 +43,27 @@ var ui = {
     helpKey: null
 };
 
-function initBatch() {
+async function initBatch() {
+    // Load Home View
+    const viewContainer = document.getElementById('view-home-container');
+    if (viewContainer) {
+        try {
+            const response = await fetch('views/home.html');
+            if (response.ok) {
+                const html = await response.text();
+                viewContainer.innerHTML = html;
+                // Initialize UI after loading view
+                initBatchUI();
+            } else {
+                console.error('Failed to load home.html');
+            }
+        } catch (e) {
+            console.error('Error loading home.html', e);
+        }
+    }
+}
+
+function initBatchUI() {
     // Bind UI Elements
     ui.tabs = document.getElementById('modeTabs');
     ui.dropZone = document.getElementById('dropZone');
@@ -74,27 +94,29 @@ function initBatch() {
     ui.helpKey = document.getElementById('helpKey');
 
     // Event Listeners
-    ui.tabs.addEventListener('change', handleModeChange);
+    if (ui.tabs) ui.tabs.addEventListener('change', handleModeChange);
 
-    ui.selectFolderBtn.addEventListener('click', () => ui.folderInput.click());
-    ui.folderInput.addEventListener('change', handleFileSelect);
+    if (ui.selectFolderBtn) ui.selectFolderBtn.addEventListener('click', () => ui.folderInput.click());
+    if (ui.folderInput) ui.folderInput.addEventListener('change', handleFileSelect);
 
-    ui.selectFilesBtn.addEventListener('click', () => ui.fileInput.click());
-    ui.fileInput.addEventListener('change', handleFileSelect);
+    if (ui.selectFilesBtn) ui.selectFilesBtn.addEventListener('click', () => ui.fileInput.click());
+    if (ui.fileInput) ui.fileInput.addEventListener('change', handleFileSelect);
 
-    ui.startBtn.addEventListener('click', startBatch);
-    ui.detectKeyBtn.addEventListener('click', detectKey);
-    ui.themeToggle.addEventListener('click', toggleTheme);
-    ui.langToggle.addEventListener('click', toggleLang);
+    if (ui.startBtn) ui.startBtn.addEventListener('click', startBatch);
+    if (ui.detectKeyBtn) ui.detectKeyBtn.addEventListener('click', detectKey);
+    if (ui.themeToggle) ui.themeToggle.addEventListener('click', toggleTheme);
+    if (ui.langToggle) ui.langToggle.addEventListener('click', toggleLang);
 
     // Lightbox
-    ui.closeLightbox.addEventListener('click', () => ui.lightbox.classList.add('hidden'));
-    ui.lightbox.addEventListener('click', (e) => {
-        if (e.target === ui.lightbox) ui.lightbox.classList.add('hidden');
-    });
+    if (ui.closeLightbox) ui.closeLightbox.addEventListener('click', () => ui.lightbox.classList.add('hidden'));
+    if (ui.lightbox) {
+        ui.lightbox.addEventListener('click', (e) => {
+            if (e.target === ui.lightbox) ui.lightbox.classList.add('hidden');
+        });
+    }
 
     // Help Dialog
-    ui.closeHelpBtn.addEventListener('click', () => ui.helpDialog.close());
+    if (ui.closeHelpBtn) ui.closeHelpBtn.addEventListener('click', () => ui.helpDialog.close());
     document.querySelectorAll('.help-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const key = e.currentTarget.getAttribute('data-help');
@@ -104,18 +126,20 @@ function initBatch() {
     });
 
     // Drag & Drop
-    ui.dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        ui.dropZone.classList.add('drag-over');
-    });
-    ui.dropZone.addEventListener('dragleave', () => {
-        ui.dropZone.classList.remove('drag-over');
-    });
-    ui.dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        ui.dropZone.classList.remove('drag-over');
-        handleFileSelect(e);
-    });
+    if (ui.dropZone) {
+        ui.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            ui.dropZone.classList.add('drag-over');
+        });
+        ui.dropZone.addEventListener('dragleave', () => {
+            ui.dropZone.classList.remove('drag-over');
+        });
+        ui.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            ui.dropZone.classList.remove('drag-over');
+            handleFileSelect(e);
+        });
+    }
 
     // Check for file protocol
     if (window.location.protocol === 'file:') {
