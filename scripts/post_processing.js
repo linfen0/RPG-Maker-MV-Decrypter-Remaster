@@ -6,6 +6,7 @@ const ppState = {
     sanitizeFiles: [],
     resegmentFiles: [],
     worker: null,
+    regexManager: null,
     isProcessing: false
 };
 
@@ -23,6 +24,10 @@ async function initPostProcessing() {
         if (response.ok) {
             const html = await response.text();
             viewContainer.innerHTML = html;
+
+            // Init Regex Manager
+            ppState.regexManager = new RegexManager('regexManagerContainer');
+
             bindPPEvents();
         } else {
             console.error('Failed to load post_process.html');
@@ -99,44 +104,64 @@ function bindPPEvents() {
         });
     }
 
+    // --- Regex Manager Events ---
+    const btnAddRegex = document.getElementById('btnAddRegex');
+    if (btnAddRegex) btnAddRegex.addEventListener('click', () => ppState.regexManager.addRegex());
+
+    const btnExportRegex = document.getElementById('btnExportRegex');
+    if (btnExportRegex) btnExportRegex.addEventListener('click', () => ppState.regexManager.exportSettings());
+
+    const btnImportRegex = document.getElementById('btnImportRegex');
+    const regexImportInput = document.getElementById('regexImportInput');
+    if (btnImportRegex && regexImportInput) {
+        btnImportRegex.addEventListener('click', () => regexImportInput.click());
+        regexImportInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                ppState.regexManager.importSettings(e.target.files[0]);
+                e.target.value = ''; // Reset
+            }
+        });
+    }
+
     // --- Sanitization ---
     const sanitizeInput = document.getElementById('ppSanitizeInput');
     const sanitizeSelectBtn = document.getElementById('ppSanitizeSelectBtn');
 
-    sanitizeSelectBtn.addEventListener('click', () => sanitizeInput.click());
-    sanitizeInput.addEventListener('change', (e) => {
-        ppState.sanitizeFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(xlsx|csv)$/i));
-        document.getElementById('ppSanitizeFileCount').textContent = `${ppState.sanitizeFiles.length} files selected`;
-    });
+    if (sanitizeSelectBtn) sanitizeSelectBtn.addEventListener('click', () => sanitizeInput.click());
+    if (sanitizeInput) {
+        sanitizeInput.addEventListener('change', (e) => {
+            ppState.sanitizeFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(xlsx|csv)$/i));
+            document.getElementById('ppSanitizeFileCount').textContent = `${ppState.sanitizeFiles.length} files selected`;
+        });
+    }
 
-    document.getElementById('ppSanitizeStartBtn').addEventListener('click', startSanitization);
+    const btnStartSanitize = document.getElementById('ppSanitizeStartBtn');
+    if (btnStartSanitize) btnStartSanitize.addEventListener('click', startSanitization);
 
     // --- Re-segmentation ---
     const resegmentInput = document.getElementById('ppResegmentInput');
     const resegmentSelectBtn = document.getElementById('ppResegmentSelectBtn');
 
-    resegmentSelectBtn.addEventListener('click', () => resegmentInput.click());
-    resegmentInput.addEventListener('change', (e) => {
-        ppState.resegmentFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(txt|json|csv)$/i)); // Broaden support?
-        document.getElementById('ppResegmentFileCount').textContent = `${ppState.resegmentFiles.length} files selected`;
-    });
+    if (resegmentSelectBtn) resegmentSelectBtn.addEventListener('click', () => resegmentInput.click());
+    if (resegmentInput) {
+        resegmentInput.addEventListener('change', (e) => {
+            ppState.resegmentFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(txt|json|csv)$/i)); // Broaden support?
+            document.getElementById('ppResegmentFileCount').textContent = `${ppState.resegmentFiles.length} files selected`;
+        });
+    }
 
-    document.getElementById('ppResegmentStartBtn').addEventListener('click', startResegmentation);
+    const btnStartResegment = document.getElementById('ppResegmentStartBtn');
+    if (btnStartResegment) btnStartResegment.addEventListener('click', startResegmentation);
 
     // Preview
     const previewInput = document.getElementById('ppPreviewInput');
-    previewInput.addEventListener('input', debounce(updatePreview, 500));
+    if (previewInput) previewInput.addEventListener('input', debounce(updatePreview, 500));
 }
 
 function startSanitization() {
     if (ppState.sanitizeFiles.length === 0) return alert('No files selected');
 
-    const regexList = [];
-    if (document.getElementById('regex-brace').checked) regexList.push('}');
-    if (document.getElementById('regex-html').checked) {
-        regexList.push('^<.+?>.*<\\/.+?>$'); // Strict HTML tag with content
-        regexList.push('^<[^>]+>$'); // Strict Single tag
-    }
+    const regexList = ppState.regexManager.getActiveRegexes();
 
     document.getElementById('ppSanitizeLog').textContent = 'Starting sanitization...\n';
 

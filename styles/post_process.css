@@ -112,3 +112,69 @@
         height: 400px;
     }
 }
+
+/* Regex Manager */
+.regex-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.regex-manager-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.regex-card {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    padding: 12px;
+    background-color: var(--md-sys-color-surface-container-low);
+    transition: background-color 0.2s;
+}
+
+.regex-card:hover {
+    background-color: var(--md-sys-color-surface-container);
+}
+
+.regex-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.regex-name-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--md-sys-color-on-surface);
+    border-bottom: 1px solid transparent;
+    padding: 4px 0;
+}
+
+.regex-name-input:focus {
+    outline: none;
+    border-bottom-color: var(--md-sys-color-primary);
+}
+
+.regex-card-content {
+    padding-left: 44px;
+    /* Align with text, skipping checkbox */
+}
+
+.full-width {
+    width: 100%;
+}

@@ -30,6 +30,31 @@
                 </span>
             </div>
 
+            <!-- Regex Manager -->
+            <div class="control-group">
+                <div class="regex-toolbar">
+                    <span class="label-large" data-i18n="pp.regexList">Regex List</span>
+                    <div class="toolbar-actions">
+                        <md-text-button id="btnAddRegex">
+                            <md-icon slot="icon">add</md-icon>
+                            <span data-i18n="btn.add">Add</span>
+                        </md-text-button>
+                        <md-text-button id="btnImportRegex">
+                            <md-icon slot="icon">upload</md-icon>
+                            <span data-i18n="btn.import">Import</span>
+                        </md-text-button>
+                        <md-text-button id="btnExportRegex">
+                            <md-icon slot="icon">download</md-icon>
+                            <span data-i18n="btn.export">Export</span>
+                        </md-text-button>
+                    </div>
+                </div>
+                <div id="regexManagerContainer" class="regex-manager-container">
+                    <!-- Regex Cards Injected Here -->
+                </div>
+                <input type="file" id="regexImportInput" accept=".json" style="display: none;">
+            </div>
+
             <div class="control-group">
                 <span class="label-large" data-i18n="pp.input">Input</span>
                 <div class="file-input-row">
@@ -37,7 +62,9 @@
                         <md-icon slot="icon">folder_open</md-icon>
                         <span data-i18n="btn.selectFolder">Select Folder</span>
                     </md-filled-button>
+                    <span id="ppSanitizeFileCount" class="body-medium">0 files selected</span>
                 </div>
+                <input type="file" id="ppSanitizeInput" webkitdirectory directory multiple style="display: none;">
 
                 <div id="ppSanitizeResults" class="results-row hidden">
                     <md-outlined-button id="ppDownloadMarkedBtn">
@@ -50,59 +77,67 @@
                     </md-outlined-button>
                 </div>
 
+                <div class="action-row">
+                    <md-filled-button id="ppSanitizeStartBtn">
+                        <md-icon slot="icon">play_arrow</md-icon>
+                        <span data-i18n="btn.start">Start Sanitization</span>
+                    </md-filled-button>
+                </div>
+
                 <div class="log-area">
                     <pre id="ppSanitizeLog"></pre>
                 </div>
             </div>
+        </div>
 
-            <!-- Step 2: Re-segmentation -->
-            <div id="view-resegment" class="pp-view hidden">
-                <div class="card-instruction">
-                    <md-icon>info</md-icon>
-                    <span class="body-medium" data-i18n="pp.resegment.desc">
-                        Re-format text based on width to prevent overflow.
-                    </span>
-                </div>
+        <!-- Step 2: Re-segmentation -->
+        <div id="view-resegment" class="pp-view hidden">
+            <div class="card-instruction">
+                <md-icon>info</md-icon>
+                <span class="body-medium" data-i18n="pp.resegment.desc">
+                    Re-format text based on width to prevent overflow.
+                </span>
+            </div>
 
-                <div class="control-group">
-                    <span class="label-large" data-i18n="pp.input">Input</span>
-                    <div class="file-input-row">
-                        <md-filled-button id="ppResegmentSelectBtn">
-                            <md-icon slot="icon">folder_open</md-icon>
-                            <span data-i18n="btn.selectFolder">Select Folder</span>
-                        </md-filled-button>
-                        <span id="ppResegmentFileCount" class="body-medium">0 files selected</span>
-                    </div>
-                    <input type="file" id="ppResegmentInput" webkitdirectory directory multiple style="display: none;">
-                </div>
-
-                <div class="control-group">
-                    <span class="label-large" data-i18n="pp.settings">Settings</span>
-                    <div class="setting-row">
-                        <md-outlined-text-field id="ppMaxWidth" label="Max Width (Half-width chars)" type="number"
-                            value="30">
-                        </md-outlined-text-field>
-                    </div>
-                </div>
-
-                <div class="preview-section">
-                    <span class="label-large" data-i18n="pp.preview">Preview</span>
-                    <div class="preview-container">
-                        <textarea id="ppPreviewInput" placeholder="Type text to test segmentation..."></textarea>
-                        <div id="ppPreviewOutput" class="preview-output"></div>
-                    </div>
-                </div>
-
-                <div class="action-row">
-                    <md-filled-button id="ppResegmentStartBtn">
-                        <md-icon slot="icon">play_arrow</md-icon>
-                        <span data-i18n="btn.start">Start Re-segmentation</span>
+            <div class="control-group">
+                <span class="label-large" data-i18n="pp.input">Input</span>
+                <div class="file-input-row">
+                    <md-filled-button id="ppResegmentSelectBtn">
+                        <md-icon slot="icon">folder_open</md-icon>
+                        <span data-i18n="btn.selectFolder">Select Folder</span>
                     </md-filled-button>
+                    <span id="ppResegmentFileCount" class="body-medium">0 files selected</span>
                 </div>
-                <div class="log-area">
-                    <pre id="ppResegmentLog"></pre>
+                <input type="file" id="ppResegmentInput" webkitdirectory directory multiple style="display: none;">
+            </div>
+
+            <div class="control-group">
+                <span class="label-large" data-i18n="pp.settings">Settings</span>
+                <div class="setting-row">
+                    <md-outlined-text-field id="ppMaxWidth" label="Max Width (Half-width chars)" type="number"
+                        value="30">
+                    </md-outlined-text-field>
                 </div>
             </div>
 
+            <div class="preview-section">
+                <span class="label-large" data-i18n="pp.preview">Preview</span>
+                <div class="preview-container">
+                    <textarea id="ppPreviewInput" placeholder="Type text to test segmentation..."></textarea>
+                    <div id="ppPreviewOutput" class="preview-output"></div>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <md-filled-button id="ppResegmentStartBtn">
+                    <md-icon slot="icon">play_arrow</md-icon>
+                    <span data-i18n="btn.start">Start Re-segmentation</span>
+                </md-filled-button>
+            </div>
+            <div class="log-area">
+                <pre id="ppResegmentLog"></pre>
+            </div>
         </div>
+
     </div>
+</div>
