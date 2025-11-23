@@ -496,36 +496,7 @@ body {
 	opacity: 0.7;
 }
 
-.help-btn:hover {
-	opacity: 1;
-}
-
-.group-header {
-	display: flex;
-	align-items: center;
-}
-
-.setting-row {
-	display: flex;
-	align-items: center;
-}
-
-/* Help Dialog */
-#helpDialog {
-	--md-dialog-container-color: var(--md-sys-color-surface);
-	pointer-events: none;
-}
-
-.lightbox-content {
-	position: relative;
-	max-width: 90%;
-	max-height: 90%;
-}
-
-.lightbox-content img {
-	max-width: 100%;
-	font-size: 22px;
-	margin-bottom: 8px;
+margin-bottom: 8px;
 }
 
 .body-medium {
