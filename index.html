@@ -25,9 +25,30 @@
 
 <body>
 	<div class="app-container">
+		<!-- Navigation Drawer -->
+		<aside class="nav-drawer" id="navDrawer">
+			<div class="drawer-header">
+				<span class="title-large">Menu</span>
+				<md-icon-button id="closeDrawerBtn">
+					<md-icon>close</md-icon>
+				</md-icon-button>
+			</div>
+			<nav class="drawer-content">
+				<div class="nav-item active" id="nav-home">
+					<md-icon>lock_open</md-icon>
+					<span data-i18n="nav.home">Decrypt/Pack</span>
+				</div>
+				<div class="nav-item" id="nav-postprocess">
+					<md-icon>translate</md-icon>
+					<span data-i18n="nav.postprocess">Translation Post-processing</span>
+				</div>
+			</nav>
+		</aside>
+
+
 		<!-- Top App Bar -->
 		<header class="top-app-bar">
-			<md-icon-button>
+			<md-icon-button id="menuBtn">
 				<md-icon>menu</md-icon>
 			</md-icon-button>
 			<span class="headline-small" data-i18n="app.title">RPG MV MZDecrypter</span>
@@ -41,148 +62,159 @@
 		</header>
 
 		<!-- Main Content -->
-		<main class="main-content">
+		<main class="main-content" id="mainContent">
 
-			<!-- Mode Switcher -->
-			<div class="mode-switcher-container">
-				<md-tabs id="modeTabs">
-					<md-primary-tab id="tab-decrypt" aria-selected="true">
-						<span data-i18n="tab.decrypt">Decrypt</span>
-						<md-icon slot="icon">lock_open</md-icon>
-					</md-primary-tab>
-					<md-primary-tab id="tab-encrypt">
-						<span data-i18n="tab.encrypt">Encrypt</span>
-						<md-icon slot="icon">lock</md-icon>
-					</md-primary-tab>
-					<md-primary-tab id="tab-restore">
-						<span data-i18n="tab.restore">Restore</span>
-						<md-icon slot="icon">image_search</md-icon>
-					</md-primary-tab>
-				</md-tabs>
-			</div>
+			<!-- Overlay for Drawer -->
+			<div class="drawer-overlay hidden" id="drawerOverlay"></div>
 
-			<!-- Action Area -->
-			<div class="action-area">
-
-				<!-- Folder Drop Zone -->
-				<div id="dropZone" class="drop-zone">
-					<md-icon class="drop-icon">folder_open</md-icon>
-					<span class="title-large" data-i18n="drop.title">Drop Folder Here</span>
-					<span class="body-medium" data-i18n="drop.or">or</span>
-					<md-filled-button id="selectFolderBtn">
-						<md-icon slot="icon">create_new_folder</md-icon>
-						<span data-i18n="btn.selectFolder">Select Folder</span>
-					</md-filled-button>
-					<div class="secondary-actions">
-						<md-text-button id="selectFilesBtn">
-							<span data-i18n="btn.selectFiles">Select Single Files</span>
-						</md-text-button>
-					</div>
+			<!-- View: Home (Decrypt/Encrypt) -->
+			<div id="view-home" class="view-section active">
+				<!-- Mode Switcher -->
+				<div class="mode-switcher-container">
+					<md-tabs id="modeTabs">
+						<md-primary-tab id="tab-decrypt" aria-selected="true">
+							<span data-i18n="tab.decrypt">Decrypt</span>
+							<md-icon slot="icon">lock_open</md-icon>
+						</md-primary-tab>
+						<md-primary-tab id="tab-encrypt">
+							<span data-i18n="tab.encrypt">Encrypt</span>
+							<md-icon slot="icon">lock</md-icon>
+						</md-primary-tab>
+						<md-primary-tab id="tab-restore">
+							<span data-i18n="tab.restore">Restore</span>
+							<md-icon slot="icon">image_search</md-icon>
+						</md-primary-tab>
+					</md-tabs>
 				</div>
 
-				<!-- Settings Card (Context Aware) -->
-				<div class="settings-card">
-					<md-elevation></md-elevation>
-					<div class="settings-header">
-						<md-icon>settings</md-icon>
-						<span class="title-medium" data-i18n="card.settings">Settings</span>
+				<!-- Action Area -->
+				<div class="action-area">
+
+					<!-- Folder Drop Zone -->
+					<div id="dropZone" class="drop-zone">
+						<md-icon class="drop-icon">folder_open</md-icon>
+						<span class="title-large" data-i18n="drop.title">Drop Folder Here</span>
+						<span class="body-medium" data-i18n="drop.or">or</span>
+						<md-filled-button id="selectFolderBtn">
+							<md-icon slot="icon">create_new_folder</md-icon>
+							<span data-i18n="btn.selectFolder">Select Folder</span>
+						</md-filled-button>
+						<div class="secondary-actions">
+							<md-text-button id="selectFilesBtn">
+								<span data-i18n="btn.selectFiles">Select Single Files</span>
+							</md-text-button>
+						</div>
 					</div>
 
-					<div class="settings-content">
-						<!-- Decrypt/Encrypt Key -->
-						<div class="setting-row">
-							<md-outlined-text-field id="decryptCode" label="Decryption Key" data-i18n="label.decryptKey"
-								type="text" class="full-width hidden">
-								<md-icon-button slot="trailing-icon" id="detectKeyBtn"
-									data-i18n-tooltip="btn.detectKey">
-									<md-icon>search</md-icon>
-								</md-icon-button>
-							</md-outlined-text-field>
-							<md-icon-button class="help-btn hidden" id="helpKey" data-help="help.decryptKey">
-								<md-icon>help_outline</md-icon>
-							</md-icon-button>
+					<!-- Settings Card (Context Aware) -->
+					<div class="settings-card">
+						<md-elevation></md-elevation>
+						<div class="settings-header">
+							<md-icon>settings</md-icon>
+							<span class="title-medium" data-i18n="card.settings">Settings</span>
 						</div>
 
-						<!-- Encrypt Target Version -->
-						<div id="encryptOptions" class="radio-group hidden">
-							<div class="group-header">
-								<span class="label-large" data-i18n="label.targetVer">Target Version:</span>
-								<md-icon-button class="help-btn" data-help="help.targetVer">
+						<div class="settings-content">
+							<!-- Decrypt/Encrypt Key -->
+							<div class="setting-row">
+								<md-outlined-text-field id="decryptCode" label="Decryption Key"
+									data-i18n="label.decryptKey" type="text" class="full-width hidden">
+									<md-icon-button slot="trailing-icon" id="detectKeyBtn"
+										data-i18n-tooltip="btn.detectKey">
+										<md-icon>search</md-icon>
+									</md-icon-button>
+								</md-outlined-text-field>
+								<md-icon-button class="help-btn hidden" id="helpKey" data-help="help.decryptKey">
 									<md-icon>help_outline</md-icon>
 								</md-icon-button>
 							</div>
-							<label class="radio-label">
-								<md-radio name="targetVer" value="mv" checked></md-radio>
-								MV
-							</label>
-							<label class="radio-label">
-								<md-radio name="targetVer" value="mz"></md-radio>
-								MZ
-							</label>
-						</div>
 
-						<!-- Header Options -->
-						<div class="header-options">
-							<label class="checkbox-label">
-								<md-checkbox id="verifyHeader" checked></md-checkbox>
-								<span data-i18n="check.verifyHeader">Verify/Add Fake Header</span>
-							</label>
-							<md-icon-button class="help-btn" data-help="help.fakeHeader">
-								<md-icon>help_outline</md-icon>
-							</md-icon-button>
-						</div>
+							<!-- Encrypt Target Version -->
+							<div id="encryptOptions" class="radio-group hidden">
+								<div class="group-header">
+									<span class="label-large" data-i18n="label.targetVer">Target Version:</span>
+									<md-icon-button class="help-btn" data-help="help.targetVer">
+										<md-icon>help_outline</md-icon>
+									</md-icon-button>
+								</div>
+								<label class="radio-label">
+									<md-radio name="targetVer" value="mv" checked></md-radio>
+									MV
+								</label>
+								<label class="radio-label">
+									<md-radio name="targetVer" value="mz"></md-radio>
+									MZ
+								</label>
+							</div>
 
-						<!-- Output Mode -->
-						<div class="output-options">
-							<div class="group-header">
-								<span class="label-large" data-i18n="label.outputMode">Output Mode:</span>
-								<md-icon-button class="help-btn" data-help="help.outputMode">
+							<!-- Header Options -->
+							<div class="header-options">
+								<label class="checkbox-label">
+									<md-checkbox id="verifyHeader" checked></md-checkbox>
+									<span data-i18n="check.verifyHeader">Verify/Add Fake Header</span>
+								</label>
+								<md-icon-button class="help-btn" data-help="help.fakeHeader">
 									<md-icon>help_outline</md-icon>
 								</md-icon-button>
 							</div>
-							<label class="radio-label">
-								<md-radio name="outputMode" value="folder"></md-radio>
-								<span data-i18n="radio.folder">Folder (Direct Write)</span>
-							</label>
-							<label class="radio-label">
-								<md-radio name="outputMode" value="zip" checked></md-radio>
-								<span data-i18n="radio.zip">ZIP Archive</span>
-							</label>
+
+							<!-- Output Mode -->
+							<div class="output-options">
+								<div class="group-header">
+									<span class="label-large" data-i18n="label.outputMode">Output Mode:</span>
+									<md-icon-button class="help-btn" data-help="help.outputMode">
+										<md-icon>help_outline</md-icon>
+									</md-icon-button>
+								</div>
+								<label class="radio-label">
+									<md-radio name="outputMode" value="folder"></md-radio>
+									<span data-i18n="radio.folder">Folder (Direct Write)</span>
+								</label>
+								<label class="radio-label">
+									<md-radio name="outputMode" value="zip" checked></md-radio>
+									<span data-i18n="radio.zip">ZIP Archive</span>
+								</label>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
 
-			<!-- Progress & Actions -->
-			<div class="process-area">
-				<div class="info-row">
-					<span class="body-large" id="statusText" data-i18n="status.ready">Ready</span>
-					<span class="body-large" id="fileCount">0 files</span>
-				</div>
-				<md-linear-progress id="progressBar" value="0"></md-linear-progress>
-
-				<div class="fab-container">
-					<md-fab id="startBatchBtn" variant="primary" label="Start">
-						<md-icon slot="icon">play_arrow</md-icon>
-					</md-fab>
-				</div>
-			</div>
-
-			<!-- Results Area -->
-			<div class="results-area">
-				<details class="log-details">
-					<summary>
-						<span class="label-large" data-i18n="label.log">Process Log</span>
-						<md-icon>expand_more</md-icon>
-					</summary>
-					<div class="log-content">
-						<pre id="batchLog">Waiting for action...</pre>
+				<!-- Progress & Actions -->
+				<div class="process-area">
+					<div class="info-row">
+						<span class="body-large" id="statusText" data-i18n="status.ready">Ready</span>
+						<span class="body-large" id="fileCount">0 files</span>
 					</div>
-				</details>
+					<md-linear-progress id="progressBar" value="0"></md-linear-progress>
 
-				<div class="preview-grid" id="previewGrid">
-					<!-- Preview Cards will be injected here -->
+					<div class="fab-container">
+						<md-fab id="startBatchBtn" variant="primary" label="Start">
+							<md-icon slot="icon">play_arrow</md-icon>
+						</md-fab>
+					</div>
 				</div>
+
+				<!-- Results Area -->
+				<div class="results-area">
+					<details class="log-details">
+						<summary>
+							<span class="label-large" data-i18n="label.log">Process Log</span>
+							<md-icon>expand_more</md-icon>
+						</summary>
+						<div class="log-content">
+							<pre id="batchLog">Waiting for action...</pre>
+						</div>
+					</details>
+
+					<div class="preview-grid" id="previewGrid">
+						<!-- Preview Cards will be injected here -->
+					</div>
+				</div>
+			</div>
+
+			<!-- View: Post-processing -->
+			<div id="view-postprocess" class="view-section hidden">
+				<!-- Content loaded dynamically -->
 			</div>
 
 		</main>
@@ -224,6 +256,7 @@
 	<script src="scripts/ZIP.js"></script>
 	<script src="scripts/i18n.js"></script>
 	<script src="scripts/batch.js"></script>
+	<script src="scripts/post_processing.js"></script>
 </body>
 
 </html>

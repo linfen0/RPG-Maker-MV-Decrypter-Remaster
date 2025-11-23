@@ -1,0 +1,274 @@
+/**
+ * Translation Post-processing Logic
+ */
+
+const ppState = {
+    sanitizeFiles: [],
+    resegmentFiles: [],
+    worker: null,
+    isProcessing: false
+};
+
+// Initialize Post-processing
+document.addEventListener('DOMContentLoaded', () => {
+    initPostProcessing();
+    initNavigation();
+});
+
+async function initPostProcessing() {
+    // Load View
+    const viewContainer = document.getElementById('view-postprocess');
+    try {
+        const response = await fetch('views/post_process.html');
+        if (response.ok) {
+            const html = await response.text();
+            viewContainer.innerHTML = html;
+            bindPPEvents();
+        } else {
+            console.error('Failed to load post_process.html');
+        }
+    } catch (e) {
+        console.error('Error loading post_process.html', e);
+    }
+
+    // Init Worker
+    ppState.worker = new Worker('scripts/post_process_worker.js');
+    ppState.worker.onmessage = handlePPWorkerMessage;
+}
+
+function initNavigation() {
+    const drawer = document.getElementById('navDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    const menuBtn = document.getElementById('menuBtn'); // Updated ID from top-app-bar
+    const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+    const navHome = document.getElementById('nav-home');
+    const navPP = document.getElementById('nav-postprocess');
+
+    // Toggle Drawer
+    function toggleDrawer(show) {
+        if (show) {
+            drawer.classList.add('open');
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.style.opacity = '1', 10);
+        } else {
+            drawer.classList.remove('open');
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+    }
+
+    if (menuBtn) menuBtn.addEventListener('click', () => toggleDrawer(true));
+    if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', () => toggleDrawer(false));
+    if (overlay) overlay.addEventListener('click', () => toggleDrawer(false));
+
+    // Navigation
+    navHome.addEventListener('click', () => {
+        switchView('home');
+        toggleDrawer(false);
+        navHome.classList.add('active');
+        navPP.classList.remove('active');
+    });
+
+    navPP.addEventListener('click', () => {
+        switchView('postprocess');
+        toggleDrawer(false);
+        navPP.classList.add('active');
+        navHome.classList.remove('active');
+    });
+}
+
+function switchView(viewName) {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active', 'hidden'));
+    document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+
+    const target = document.getElementById(`view-${viewName}`);
+    if (target) {
+        target.classList.remove('hidden');
+        target.classList.add('active');
+    }
+}
+
+function bindPPEvents() {
+    // Tabs
+    const tabs = document.getElementById('ppTabs');
+    if (tabs) {
+        tabs.addEventListener('change', () => {
+            const isSanitize = document.getElementById('tab-sanitize').active;
+            document.getElementById('view-sanitize').classList.toggle('hidden', !isSanitize);
+            document.getElementById('view-resegment').classList.toggle('hidden', isSanitize);
+        });
+    }
+
+    // --- Sanitization ---
+    const sanitizeInput = document.getElementById('ppSanitizeInput');
+    const sanitizeSelectBtn = document.getElementById('ppSanitizeSelectBtn');
+
+    sanitizeSelectBtn.addEventListener('click', () => sanitizeInput.click());
+    sanitizeInput.addEventListener('change', (e) => {
+        ppState.sanitizeFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(xlsx|csv)$/i));
+        document.getElementById('ppSanitizeFileCount').textContent = `${ppState.sanitizeFiles.length} files selected`;
+    });
+
+    document.getElementById('ppSanitizeStartBtn').addEventListener('click', startSanitization);
+
+    // --- Re-segmentation ---
+    const resegmentInput = document.getElementById('ppResegmentInput');
+    const resegmentSelectBtn = document.getElementById('ppResegmentSelectBtn');
+
+    resegmentSelectBtn.addEventListener('click', () => resegmentInput.click());
+    resegmentInput.addEventListener('change', (e) => {
+        ppState.resegmentFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(txt|json|csv)$/i)); // Broaden support?
+        document.getElementById('ppResegmentFileCount').textContent = `${ppState.resegmentFiles.length} files selected`;
+    });
+
+    document.getElementById('ppResegmentStartBtn').addEventListener('click', startResegmentation);
+
+    // Preview
+    const previewInput = document.getElementById('ppPreviewInput');
+    previewInput.addEventListener('input', debounce(updatePreview, 500));
+}
+
+function startSanitization() {
+    if (ppState.sanitizeFiles.length === 0) return alert('No files selected');
+
+    const regexList = [];
+    if (document.getElementById('regex-brace').checked) regexList.push('}');
+    if (document.getElementById('regex-html').checked) {
+        regexList.push('^<.+?>.*<\\/.+?>$'); // Strict HTML tag with content
+        regexList.push('^<[^>]+>$'); // Strict Single tag
+    }
+
+    document.getElementById('ppSanitizeLog').textContent = 'Starting sanitization...\n';
+
+    ppState.sanitizeFiles.forEach(file => {
+        ppState.worker.postMessage({
+            action: 'sanitize',
+            file: file,
+            regexList: regexList
+        });
+    });
+}
+
+function startResegmentation() {
+    if (ppState.resegmentFiles.length === 0) return alert('No files selected');
+
+    const maxWidth = parseInt(document.getElementById('ppMaxWidth').value) || 30;
+    const locale = navigator.language || 'zh-CN';
+
+    document.getElementById('ppResegmentLog').textContent = 'Starting re-segmentation...\n';
+
+    ppState.resegmentFiles.forEach(file => {
+        ppState.worker.postMessage({
+            action: 'resegment',
+            file: file,
+            maxWidth: maxWidth,
+            locale: locale
+        });
+    });
+}
+
+function handlePPWorkerMessage(e) {
+    const data = e.data;
+    if (data.status === 'error') {
+        logPP(data.action, `Error processing ${data.fileName}: ${data.error}`);
+    } else if (data.status === 'success') {
+        if (data.action === 'sanitize') {
+            logPP('sanitize', `Processed ${data.fileName}. Changes: ${data.hasChanges}`);
+            // Auto download or enable buttons? For now, simple save
+            if (data.hasChanges) {
+                saveAs(data.markedBlob, `MARKED_${data.fileName}`);
+                saveAs(data.unmarkedBlob, `UNMARKED_${data.fileName}`);
+            } else {
+                logPP('sanitize', `No changes for ${data.fileName}`);
+            }
+        } else if (data.action === 'resegment') {
+            logPP('resegment', `Processed ${data.fileName}`);
+            saveAs(data.blob, `RESEG_${data.fileName}`);
+        }
+    }
+}
+
+function logPP(action, msg) {
+    const logEl = document.getElementById(action === 'sanitize' ? 'ppSanitizeLog' : 'ppResegmentLog');
+    if (logEl) logEl.textContent += msg + '\n';
+}
+
+// Preview Logic (Client-side simulation)
+function updatePreview() {
+    const text = document.getElementById('ppPreviewInput').value;
+    const maxWidth = parseInt(document.getElementById('ppMaxWidth').value) || 30;
+    const locale = navigator.language || 'zh-CN';
+
+    // Reuse logic? Ideally worker, but for preview sync is better or fast async
+    // Let's just send to worker for consistency
+
+    // Mock file
+    const file = new File([text], "preview.txt", { type: "text/plain" });
+
+    // We need a way to handle preview response distinct from batch
+    // For now, let's duplicate logic lightly here or use a dedicated preview action
+    // But to ensure 1:1 match, worker is best.
+
+    // Simplified client-side for responsiveness (using same logic structure)
+    const segmenter = new Intl.Segmenter(locale, { granularity: 'word' });
+    const tagRegex = /(<[^>]+>|\\N\[\d+\]|\\C\[\d+\]|\{[^\}]+\})/g;
+
+    const lines = text.split(/\r?\n/);
+    let result = "";
+
+    for (let line of lines) {
+        if (line.includes('【这可能是代码】')) {
+            result += line + '\n';
+            continue;
+        }
+        let currentWidth = 0;
+        let currentLine = "";
+        const tokens = line.split(tagRegex);
+
+        for (let token of tokens) {
+            if (!token) continue;
+            if (tagRegex.test(token)) {
+                currentLine += token;
+            } else {
+                const segments = segmenter.segment(token);
+                for (const seg of segments) {
+                    const word = seg.segment;
+                    const wordWidth = getWidth(word);
+                    if (currentWidth + wordWidth > maxWidth) {
+                        if (currentLine.length > 0) {
+                            result += currentLine + '\n';
+                            currentLine = "";
+                            currentWidth = 0;
+                        }
+                        currentLine += word;
+                        currentWidth += wordWidth;
+                    } else {
+                        currentLine += word;
+                        currentWidth += wordWidth;
+                    }
+                }
+            }
+        }
+        if (currentLine.length > 0) result += currentLine + '\n';
+    }
+
+    document.getElementById('ppPreviewOutput').textContent = result;
+}
+
+function getWidth(str) {
+    let width = 0;
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i);
+        if (code > 255) width += 2;
+        else width += 1;
+    }
+    return width;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
