@@ -5,7 +5,7 @@
 const ppState = {
     sanitizeFiles: [],
     resegmentFiles: [],
-    worker: null,
+    workers: [],
     regexManager: null,
     isProcessing: false
 };
@@ -37,8 +37,14 @@ async function initPostProcessing() {
     }
 
     // Init Worker
-    ppState.worker = new Worker('scripts/post_process_worker.js');
-    ppState.worker.onmessage = handlePPWorkerMessage;
+    // Init Worker Pool
+    const maxWorkers = navigator.hardwareConcurrency || 4;
+    ppState.workers = [];
+    for (let i = 0; i < maxWorkers; i++) {
+        const worker = new Worker('scripts/post_process_worker.js');
+        worker.onmessage = handlePPWorkerMessage;
+        ppState.workers.push(worker);
+    }
 }
 
 function initNavigation() {
@@ -170,8 +176,9 @@ function startSanitization() {
     ppState.processedCount = 0;
     ppState.totalFiles = ppState.sanitizeFiles.length;
 
-    ppState.sanitizeFiles.forEach(file => {
-        ppState.worker.postMessage({
+    ppState.sanitizeFiles.forEach((file, index) => {
+        const worker = ppState.workers[index % ppState.workers.length];
+        worker.postMessage({
             action: 'sanitize',
             file: file,
             regexList: regexList
@@ -187,8 +194,9 @@ function startResegmentation() {
 
     document.getElementById('ppResegmentLog').textContent = 'Starting re-segmentation...\n';
 
-    ppState.resegmentFiles.forEach(file => {
-        ppState.worker.postMessage({
+    ppState.resegmentFiles.forEach((file, index) => {
+        const worker = ppState.workers[index % ppState.workers.length];
+        worker.postMessage({
             action: 'resegment',
             file: file,
             maxWidth: maxWidth,
