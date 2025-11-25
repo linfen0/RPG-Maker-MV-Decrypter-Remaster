@@ -27,7 +27,7 @@ self.onmessage = function (e) {
         });
     }
 };
-
+//sanitizeFile
 function sanitizeFile(file, regexList) {
     const reader = new FileReader();
     reader.onload = function (e) {
