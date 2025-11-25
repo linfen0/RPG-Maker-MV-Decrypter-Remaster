@@ -110,6 +110,21 @@ function bindPPEvents() {
         });
     }
 
+    // Help Button
+    const btnSanitizeHelp = document.getElementById('btnSanitizeHelp');
+    if (btnSanitizeHelp) {
+        btnSanitizeHelp.addEventListener('click', () => {
+            const helpDialog = document.getElementById('helpDialog');
+            const helpContent = document.getElementById('helpContent');
+            const helpTitle = helpDialog.querySelector('[slot="headline"]');
+
+            if (helpTitle) helpTitle.textContent = i18n.t('help.sanitize.title');
+            if (helpContent) helpContent.innerHTML = i18n.t('help.sanitize.content');
+
+            helpDialog.show();
+        });
+    }
+
     // --- Regex Manager Events ---
     const btnAddRegex = document.getElementById('btnAddRegex');
     if (btnAddRegex) btnAddRegex.addEventListener('click', () => ppState.regexManager.addRegex());

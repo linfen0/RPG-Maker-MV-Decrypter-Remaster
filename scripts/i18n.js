@@ -52,7 +52,23 @@ const translations = {
         "btn.downloadUnmarked": "Download Unmarked",
         "pp.resegment.desc": "Re-format text based on width to prevent overflow.",
         "pp.settings": "Settings",
-        "pp.preview": "Preview"
+        "pp.preview": "Preview",
+        "help.sanitize.title": "Text Sanitization Help",
+        "help.sanitize.content": `
+            <p><strong>What is it?</strong><br>
+            This tool scans your translation files (Excel/CSV) and identifies lines that look like game code or scripts. It marks them so you don't accidentally translate them, which could break the game.</p>
+            
+            <p><strong>How to use:</strong></p>
+            <ol>
+                <li><strong>Add Regex:</strong> Define patterns to match code (e.g., lines starting with <code>&lt;</code> or containing <code>var</code>).</li>
+                <li><strong>Select Files:</strong> Choose the folder containing your translation files.</li>
+                <li><strong>Start:</strong> The tool will process all files.</li>
+            </ol>
+            
+            <p><strong>Output:</strong><br>
+            - <strong>Marked Files:</strong> A ZIP file containing the processed files. Lines matching your regex will have a new column added with the tag <code>【这可能是代码】</code>.<br>
+            - <strong>Unmarked Files:</strong> (Optional) Files that had no matches.</p>
+        `
     },
     zh: {
         "app.title": "RPG 解包器",
@@ -103,7 +119,23 @@ const translations = {
         "btn.downloadUnmarked": "下载未标记文件",
         "pp.resegment.desc": "根据宽度重新格式化文本，防止溢出。",
         "pp.settings": "设置",
-        "pp.preview": "预览"
+        "pp.preview": "预览",
+        "help.sanitize.title": "文本清洗帮助",
+        "help.sanitize.content": `
+            <p><strong>这是什么？</strong><br>
+            此工具扫描您的翻译文件（Excel/CSV），并识别看起来像游戏代码或脚本的行。它会标记这些行，以防您意外翻译它们，从而导致游戏崩溃。</p>
+            
+            <p><strong>如何使用：</strong></p>
+            <ol>
+                <li><strong>添加正则：</strong> 定义匹配代码的模式（例如，以 <code>&lt;</code> 开头的行或包含 <code>var</code> 的行）。</li>
+                <li><strong>选择文件：</strong> 选择包含翻译文件的文件夹。</li>
+                <li><strong>开始：</strong> 工具将处理所有文件。</li>
+            </ol>
+            
+            <p><strong>输出：</strong><br>
+            - <strong>已标记文件：</strong> 包含处理后文件的 ZIP 包。匹配正则的行将在新列中添加标签 <code>【这可能是代码】</code>。<br>
+            - <strong>未标记文件：</strong> （可选）没有任何匹配项的文件。</p>
+        `
     }
 };
 
