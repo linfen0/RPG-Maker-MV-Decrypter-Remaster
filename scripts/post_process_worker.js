@@ -40,7 +40,6 @@ function sanitizeFile(file, regexList) {
             // Convert to array of arrays
             const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-            const markedRows = [];
             let hasChanges = false;
 
             // Compile Regex
@@ -50,7 +49,6 @@ function sanitizeFile(file, regexList) {
                 const row = rows[i];
                 // Ensure row has at least 2 columns
                 if (row.length < 2) {
-                    markedRows.push(row);
                     continue;
                 }
 
@@ -64,20 +62,16 @@ function sanitizeFile(file, regexList) {
                     }
                 }
 
-                const markedRow = [...row];
-
                 if (isMatch) {
-                    // Prepend marker to 2nd column (index 1)
-                    markedRow[1] = '【这可能是代码】' + markedRow[1];
+                    // Append marker to a new column
+                    row.push('【这可能是代码】');
                     hasChanges = true;
                 }
-
-                markedRows.push(markedRow);
             }
 
             // Generate Outputs
             const markedWB = XLSX.utils.book_new();
-            const markedWS = XLSX.utils.aoa_to_sheet(markedRows);
+            const markedWS = XLSX.utils.aoa_to_sheet(rows);
             XLSX.utils.book_append_sheet(markedWB, markedWS, sheetName);
             const markedBlob = writeWorkbook(markedWB, file.name);
 
@@ -110,45 +104,47 @@ function resegmentFile(file, maxWidth, locale) {
     const reader = new FileReader();
     reader.onload = function (e) {
         try {
-            const text = e.target.result;
-            const lines = text.split(/\r?\n/);
-            const processedLines = [];
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
 
+            // Convert to array of arrays
+            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
             const segmenter = new Intl.Segmenter(locale || 'zh-CN', { granularity: 'word' });
-
-            // Special Tags Regex (Zero-width, Indivisible)
-            // Matches: <br>, \N, <...>, { ... }
             const tagRegex = /(<[^>]+>|\\N\[\d+\]|\\C\[\d+\]|\{[^\}]+\})/g;
 
-            for (let line of lines) {
-                if (line.includes('【这可能是代码】')) {
-                    processedLines.push(line);
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                if (row.length === 0) continue;
+
+                // Check for marker in the last column
+                const lastCol = row[row.length - 1];
+                if (lastCol === '【这可能是代码】') {
                     continue;
                 }
+
+                // Resegment the first column (assuming text is in the first column)
+                // If it's a text file loaded as CSV, it will be in row[0]
+                let text = String(row[0]);
+                if (!text) continue;
 
                 // Algorithm: O(N) Single Pass
                 let currentWidth = 0;
                 let currentLine = "";
-                let buffer = ""; // Buffer for current word/token
+                let processedText = "";
 
                 // Split line into tokens (Text + Tags)
-                // We use split with capturing group to keep separators (tags)
-                const tokens = line.split(tagRegex);
+                const tokens = text.split(tagRegex);
 
                 for (let token of tokens) {
                     if (!token) continue;
 
                     if (tagRegex.test(token)) {
-                        // It's a tag -> Zero width
-                        if (currentWidth > 0 && currentWidth + 0 > maxWidth) {
-                            // Tags are zero width, so they usually fit, unless we force break?
-                            // Actually, tags should stick to previous text if possible, or just append.
-                            // Since they are zero width, they don't trigger a break by themselves.
-                        }
+                        // Tag -> Zero width
                         currentLine += token;
-                        // Width doesn't increase
                     } else {
-                        // It's text -> Segment it
+                        // Text -> Segment
                         const segments = segmenter.segment(token);
                         for (const seg of segments) {
                             const word = seg.segment;
@@ -157,12 +153,10 @@ function resegmentFile(file, maxWidth, locale) {
                             if (currentWidth + wordWidth > maxWidth) {
                                 // Wrap
                                 if (currentLine.length > 0) {
-                                    processedLines.push(currentLine);
+                                    processedText += currentLine + '\n';
                                     currentLine = "";
                                     currentWidth = 0;
                                 }
-                                // If word itself is too long, we might force split or just put it on new line
-                                // Here we just put it on new line (or start of new line)
                                 currentLine += word;
                                 currentWidth += wordWidth;
                             } else {
@@ -173,12 +167,18 @@ function resegmentFile(file, maxWidth, locale) {
                     }
                 }
                 if (currentLine.length > 0) {
-                    processedLines.push(currentLine);
+                    processedText += currentLine;
                 }
+
+                // Update the cell
+                row[0] = processedText;
             }
 
-            const resultText = processedLines.join('\n');
-            const blob = new Blob([resultText], { type: 'text/plain' });
+            // Generate Output
+            const newWB = XLSX.utils.book_new();
+            const newWS = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(newWB, newWS, sheetName);
+            const blob = writeWorkbook(newWB, file.name);
 
             self.postMessage({
                 status: 'success',
@@ -188,10 +188,14 @@ function resegmentFile(file, maxWidth, locale) {
             });
 
         } catch (err) {
-            throw err;
+            self.postMessage({
+                status: 'error',
+                error: err.toString(),
+                fileName: file.name
+            });
         }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
 }
 
 function getWidth(str) {

@@ -326,6 +326,8 @@ async function startBatch() {
 
 var currentRunConfig = {};
 
+
+//用来调整任务队列状态
 function processQueue() {
     while (idleWorkers.length > 0 && batchFiles.length > 0) {
         const file = batchFiles.shift();

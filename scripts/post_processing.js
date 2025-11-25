@@ -145,7 +145,7 @@ function bindPPEvents() {
     if (resegmentSelectBtn) resegmentSelectBtn.addEventListener('click', () => resegmentInput.click());
     if (resegmentInput) {
         resegmentInput.addEventListener('change', (e) => {
-            ppState.resegmentFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(txt|json|csv)$/i)); // Broaden support?
+            ppState.resegmentFiles = Array.from(e.target.files).filter(f => f.name.match(/\.(txt|json|csv|xlsx)$/i)); // Broaden support?
             document.getElementById('ppResegmentFileCount').textContent = `${ppState.resegmentFiles.length} files selected`;
         });
     }
@@ -164,6 +164,11 @@ function startSanitization() {
     const regexList = ppState.regexManager.getActiveRegexes();
 
     document.getElementById('ppSanitizeLog').textContent = 'Starting sanitization...\n';
+
+    // Init ZIP and counters
+    ppState.zip = new JSZip();
+    ppState.processedCount = 0;
+    ppState.totalFiles = ppState.sanitizeFiles.length;
 
     ppState.sanitizeFiles.forEach(file => {
         ppState.worker.postMessage({
@@ -196,18 +201,42 @@ function handlePPWorkerMessage(e) {
     const data = e.data;
     if (data.status === 'error') {
         logPP(data.action, `Error processing ${data.fileName}: ${data.error}`);
+        ppState.processedCount++;
+        checkCompletion(data.action);
     } else if (data.status === 'success') {
         if (data.action === 'sanitize') {
             logPP('sanitize', `Processed ${data.fileName}. Changes: ${data.hasChanges}`);
-            // Auto download or enable buttons? For now, simple save
+
             if (data.hasChanges) {
-                saveAs(data.markedBlob, `MARKED_${data.fileName}`);
-            } else {
-                logPP('sanitize', `No changes for ${data.fileName}`);
+                // Find original file object to get path
+                const originalFile = ppState.sanitizeFiles.find(f => f.name === data.fileName);
+                const zipPath = originalFile && originalFile.webkitRelativePath ? originalFile.webkitRelativePath : data.fileName;
+                ppState.zip.file(zipPath, data.markedBlob);
             }
+
+            ppState.processedCount++;
+            checkCompletion('sanitize');
+
         } else if (data.action === 'resegment') {
             logPP('resegment', `Processed ${data.fileName}`);
             saveAs(data.blob, `RESEG_${data.fileName}`);
+        }
+    }
+}
+
+function checkCompletion(action) {
+    if (action === 'sanitize' && ppState.processedCount === ppState.totalFiles) {
+        logPP('sanitize', 'All files processed.');
+
+        if (Object.keys(ppState.zip.files).length > 0) {
+            logPP('sanitize', 'Generating ZIP...');
+            ppState.zip.generateAsync({ type: "blob" })
+                .then(function (content) {
+                    saveAs(content, "Sanitized_Files.zip");
+                    logPP('sanitize', 'ZIP downloaded.');
+                });
+        } else {
+            logPP('sanitize', 'No files were modified, so no ZIP was generated.');
         }
     }
 }
