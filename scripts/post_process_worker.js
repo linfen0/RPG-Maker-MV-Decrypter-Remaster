@@ -41,7 +41,6 @@ function sanitizeFile(file, regexList) {
             const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
             const markedRows = [];
-            const unmarkedRows = [];
             let hasChanges = false;
 
             // Compile Regex
@@ -52,7 +51,6 @@ function sanitizeFile(file, regexList) {
                 // Ensure row has at least 2 columns
                 if (row.length < 2) {
                     markedRows.push(row);
-                    unmarkedRows.push(row);
                     continue;
                 }
 
@@ -66,7 +64,6 @@ function sanitizeFile(file, regexList) {
                     }
                 }
 
-                const unmarkedRow = [...row];
                 const markedRow = [...row];
 
                 if (isMatch) {
@@ -76,7 +73,6 @@ function sanitizeFile(file, regexList) {
                 }
 
                 markedRows.push(markedRow);
-                unmarkedRows.push(unmarkedRow);
             }
 
             // Generate Outputs
@@ -85,17 +81,11 @@ function sanitizeFile(file, regexList) {
             XLSX.utils.book_append_sheet(markedWB, markedWS, sheetName);
             const markedBlob = writeWorkbook(markedWB, file.name);
 
-            const unmarkedWB = XLSX.utils.book_new();
-            const unmarkedWS = XLSX.utils.aoa_to_sheet(unmarkedRows);
-            XLSX.utils.book_append_sheet(unmarkedWB, unmarkedWS, sheetName);
-            const unmarkedBlob = writeWorkbook(unmarkedWB, file.name);
-
             self.postMessage({
                 status: 'success',
                 action: 'sanitize',
                 fileName: file.name,
                 markedBlob: markedBlob,
-                unmarkedBlob: unmarkedBlob,
                 hasChanges: hasChanges
             });
 

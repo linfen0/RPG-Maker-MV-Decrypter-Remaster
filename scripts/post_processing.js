@@ -202,7 +202,6 @@ function handlePPWorkerMessage(e) {
             // Auto download or enable buttons? For now, simple save
             if (data.hasChanges) {
                 saveAs(data.markedBlob, `MARKED_${data.fileName}`);
-                saveAs(data.unmarkedBlob, `UNMARKED_${data.fileName}`);
             } else {
                 logPP('sanitize', `No changes for ${data.fileName}`);
             }
